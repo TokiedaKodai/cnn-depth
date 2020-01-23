@@ -15,6 +15,7 @@ import pandas as pd
 import shade_cnn_common as scc
 import depth_tools
 import common_tools
+import compare_error
 
 '''
 ARGV
@@ -48,7 +49,7 @@ save_period = 1
 select_range = epoch_num
 
 #InputData
-src_dir = 'input_200117'
+src_dir = '../data/input_200117'
 
 # save predict depth PLY file
 is_save_ply = False
@@ -102,10 +103,13 @@ test_range = list(range(32, 48))
 # train_range.extend(list(range(64, 76)))
 
 '''no-rotate data'''
-train_range = list()
-for i in range(5):
-    train_range.extend(list(range(0 + 16*i, 6 + 16*i)))
-    train_range.extend(list(range(12 + 16*i, 14 + 16*i)))
+# train_range = list()
+# for i in range(5):
+#     train_range.extend(list(range(0 + 16*i, 6 + 16*i)))
+#     train_range.extend(list(range(12 + 16*i, 14 + 16*i)))
+
+'''data distance 80,90,100 cm'''
+train_range = range(48)
 
 # save ply range
 save_ply_range = list(range(32, 48))
@@ -511,7 +515,7 @@ def main():
     with open(predict_dir + '/error_compare.txt', mode='w') as f:
         f.write(err_strings)
 
-    common_tools.compare_error(predict_dir)
+    compare_error.compare_error(predict_dir)
 
 if __name__ == "__main__":
     main()

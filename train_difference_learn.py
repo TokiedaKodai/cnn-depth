@@ -9,11 +9,13 @@ from glob import glob
 import re
 import sys
 import os
+import random
+
 from keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
+from keras.callbacks import CSVLogger, ModelCheckpoint
 
 import shade_cnn_common as scc
-from keras.callbacks import CSVLogger, ModelCheckpoint
 
 '''
 ARGV
@@ -28,7 +30,7 @@ _, out_local, is_model_exist, epoch_num, augment_rate, augment_type, dropout = a
 os.chdir(os.path.dirname(os.path.abspath(__file__))) #set currenct dir
 
 #InputData
-src_dir = 'input_200117'
+src_dir = '../data/input_200117'
 
 #RemoteOutput
 out_dir = 'output'
@@ -59,10 +61,13 @@ Test Data
 # data_idx_range.extend(list(range(64, 76)))
 
 '''no-rotate data'''
-data_idx_range = list()
-for i in range(5):
-    data_idx_range.extend(list(range(0 + 16*i, 6 + 16*i)))
-    data_idx_range.extend(list(range(12 + 16*i, 14 + 16*i)))
+# data_idx_range = list()
+# for i in range(5):
+#     data_idx_range.extend(list(range(0 + 16*i, 6 + 16*i)))
+#     data_idx_range.extend(list(range(12 + 16*i, 14 + 16*i)))
+
+'''data distance 80,90,100 cm'''
+data_idx_range = range(48)
 
 # parameters
 depth_threshold = 0.2
@@ -91,6 +96,29 @@ val_rate = 0.3
 # progress bar
 verbose = 1
 
+
+def augment_zoom(img):
+    h, w, s = img.shape
+    zoom_range=[0.9, 1.1]
+    random.seed(int(np.sum(img[:, :, 1])))
+    scale = random.uniform(zoom_range[0], zoom_range[1])
+    resize_w, resize_h = int(w*scale), int(h*scale)
+    if resize_w % 2 == 1:
+        resize_w += 1
+    if resize_h % 2 == 1:
+        resize_h += 1
+        
+    x = cv2.resize(img, (resize_w, resize_h))
+    x = x / scale
+    if scale > 1:
+        new_img = x[int((resize_h - h)/2): int((resize_h + h)/2),
+                   int((resize_w - w)/2): int((resize_w + w)/2), :]
+    else:
+        new_img = np.zeros_like(img)
+        new_img[int((h - resize_h)/2): int((h + resize_h)/2),
+                int((w - resize_w)/2): int((w + resize_w)/2), :] = x
+    return new_img
+
 # augmentation
 is_augment = True
 # is_augment = False
@@ -107,11 +135,12 @@ if is_augment:
             shear_range=0,
             # zoom_range=[0.8, 1.2],
             # zoom_range=[0.9, 1],
-            zoom_range=[0.9, 1.1],
+            # zoom_range=[0.9, 1.1],
             fill_mode='constant',
             cval=0,
             # horizontal_flip=True,
             # vertical_flip=True
+            preprocessing_function=augment_zoom
         )
     elif augment_type is '1': # shift
         datagen_args = dict(
@@ -131,10 +160,11 @@ if is_augment:
     elif augment_type is '3': # zoom
         datagen_args = dict(
             # zoom_range=[0.8, 1.2],
-            zoom_range=[0.9, 1],
+            # zoom_range=[0.9, 1],
             shear_range=0,
             fill_mode='constant',
             cval=0,
+            preprocessing_function=augment_zoom
         )
     elif augment_type is '4': # no-zoom
         datagen_args = dict(
