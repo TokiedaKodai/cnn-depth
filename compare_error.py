@@ -4,8 +4,11 @@ import matplotlib.pyplot as plt
 
 root_dir = '../output/output_archive/'
 data_dir = root_dir + '200123/'
+data_dir = '../output/'
+
 output_dir = 'output_'
 pred_dir = '/predict_1000'
+pred_dir = '/predict_500'
 save_dir = data_dir
 
 def get_index_depth(dirname, index=[], type_name='test', error='RMSE'):
@@ -83,8 +86,8 @@ def compare_errors(list_compares, comp_name='', data_dir=data_dir, output_dir=ou
 
 
 def main():
-    list_compares = ['no-aug', 'aug_no-zoom', 'aug']
-    compare_errors(list_compares, 'no-rotate')
+    list_compares = ['no-aug', 'aug_zoom']
+    compare_errors(list_compares, 'zoom')
 
 
     # dir1 = root_dir + '200122/output_aug/predict_1000/'

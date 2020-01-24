@@ -26,6 +26,8 @@ ARGV
 argv = sys.argv
 _, out_dir, epoch_num, is_predict_norm = argv # output dir, epoch
 
+out_dir = '../output/' + out_dir
+
 epoch_num = int(epoch_num)
 
 # normalization
@@ -55,7 +57,7 @@ src_dir = '../data/input_200117'
 is_save_ply = False
 
 # predict normalization
-# is_predict_norm = True
+# is_predict_norm = True 
 # is_predict_norm = False
 is_predict_norm = int(is_predict_norm)
 

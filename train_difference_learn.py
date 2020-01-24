@@ -39,7 +39,7 @@ out_dir = 'output'
 is_local_train = True
 # is_local_train = False
 if is_local_train:
-    out_dir = out_local
+    out_dir = '../output/' + out_local
 
 # resume_from = None  # start new without resume
 # resume_from = 'auto'  # resume from latest model file
@@ -99,7 +99,7 @@ verbose = 1
 
 def augment_zoom(img):
     h, w, s = img.shape
-    zoom_range=[0.9, 1.1]
+    zoom_range=[0.8, 1.0]
     random.seed(int(np.sum(img[:, :, 1])))
     scale = random.uniform(zoom_range[0], zoom_range[1])
     resize_w, resize_h = int(w*scale), int(h*scale)
