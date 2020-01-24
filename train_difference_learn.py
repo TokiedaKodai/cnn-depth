@@ -96,35 +96,31 @@ val_rate = 0.3
 # progress bar
 verbose = 1
 
-
-def augment_zoom(img):
-    h, w, s = img.shape
-    zoom_range=[0.9, 1.1]
-    random.seed(int(np.sum(img[:, :, 1])))
-    scale = random.uniform(zoom_range[0], zoom_range[1])
-    resize_w, resize_h = int(w*scale), int(h*scale)
-    if resize_w % 2 == 1:
-        resize_w += 1
-    if resize_h % 2 == 1:
-        resize_h += 1
-        
-    x = cv2.resize(img, (resize_w, resize_h))
-    x = x / scale
-    if scale > 1:
-        new_img = x[int((resize_h - h)/2): int((resize_h + h)/2),
-                   int((resize_w - w)/2): int((resize_w + w)/2), :]
-    else:
-        new_img = np.zeros_like(img)
-        new_img[int((h - resize_h)/2): int((h + resize_h)/2),
-                int((w - resize_w)/2): int((w + resize_w)/2), :] = x
-    return new_img
-
 # augmentation
 is_augment = True
 # is_augment = False
+zoom_range=[0.9, 1.1]
+
 augment_rate = int(augment_rate)
 if augment_rate == 0:
     is_augment = False
+
+def augment_zoom(img):
+    h, w, s = img.shape
+    random.seed(int(np.sum(img[:, :, 1])))
+    scale = random.uniform(zoom_range[0], zoom_range[1])
+    resize_w, resize_h = int(w*scale), int(h*scale)
+    
+    x = cv2.resize(img, (resize_w, resize_h))
+    x[:, :, 1] = x[:, :, 1] / scale
+    if scale > 1:
+        new_img = x[int((resize_h - h)//2): int((resize_h + h)//2),
+                   int((resize_w - w)//2): int((resize_w + w)//2), :]
+    else:
+        new_img = np.zeros_like(img)
+        new_img[int((h - resize_h)//2): int((h + resize_h)//2),
+                int((w - resize_w)//2): int((w + resize_w)//2), :] = x
+    return new_img
 
 if is_augment:
     if augment_type is '0':
