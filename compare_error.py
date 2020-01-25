@@ -3,12 +3,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 root_dir = '../output/output_archive/'
-data_dir = root_dir + '200123/'
+data_dir = root_dir + '200124/'
 data_dir = '../output/'
 
 output_dir = 'output_'
-pred_dir = '/predict_1000'
 pred_dir = '/predict_500'
+pred_dir = '/predict_1000'
 save_dir = data_dir
 
 def get_index_depth(dirname, index=[], type_name='test', error='RMSE'):
@@ -46,7 +46,7 @@ def get_list_pred(list_dir):
         list_pred.append(pred)
     return list_pred
 
-def gen_graph(label, depth, list_pred, list_compares, comp_name, type_name='test'):
+def gen_graph(label, depth, list_pred, list_compares, comp_name, type_name='test', save_dir='./'):
     list_color = ['blue', 'orange', 'lightgreen', 'lightblue', 'red']
     list_bar = []
     list_legend = ['depth']
@@ -68,15 +68,14 @@ def gen_graph(label, depth, list_pred, list_compares, comp_name, type_name='test
     plt.xlabel(type_name + ' data')
     # plt.xlabel('Fake test data')
     plt.ylabel('RMSE [m]')
-    plt.tick_params(labelsize=7)
-    plt.savefig('errs_cmp{}_{}.pdf'.format(comp_name, type_name))
-    # plt.savefig(save_dir + 'errs_cmp{}_{}.pdf'.format(comp_name, type_name))
+    plt.tick_params(labelsize=6)
+    plt.savefig(save_dir + 'errs_cmp{}_{}.pdf'.format(comp_name, type_name))
 
 def compare_error(dir_name, error='RMSE'):
     for type_name in ['train', 'test']:
         label, depth = get_index_depth(dir_name, type_name=type_name)
         pred = get_predict(dir_name, type_name=type_name)
-        gen_graph(label, depth, pred, 'predict', comp_name='', type_name=type_name)
+        gen_graph(label, depth, [pred], ['predict'], comp_name='', type_name=type_name, save_dir=dir_name)
 
 def compare_errors(list_compares, comp_name='', data_dir=data_dir, output_dir=output_dir, pred_dir=pred_dir):
     list_dir = get_list_dir(list_compares, data_dir, output_dir, pred_dir)
@@ -86,7 +85,7 @@ def compare_errors(list_compares, comp_name='', data_dir=data_dir, output_dir=ou
 
 
 def main():
-    list_compares = ['no-aug', 'aug_zoom']
+    list_compares = ['no-aug', 'aug_zoom', 'aug']
     compare_errors(list_compares, 'zoom')
 
 
