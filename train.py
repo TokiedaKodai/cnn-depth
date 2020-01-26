@@ -15,7 +15,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
 from keras.callbacks import CSVLogger, ModelCheckpoint
 
-import shade_cnn_common as scc
+import network
 
 '''
 ARGV
@@ -38,6 +38,7 @@ out_dir = 'output'
 # Train on local
 is_local_train = True
 # is_local_train = False
+out_local = 'output_' + out_local
 if is_local_train:
     out_dir = '../output/' + out_local
 
@@ -50,8 +51,8 @@ Test Data
 100cm : 32 - 47
 '''
 '''data index'''
-# data_idx_range = list(range(32))
-# data_idx_range.extend(list(range(48, 80))) 
+data_idx_range = list(range(32))
+data_idx_range.extend(list(range(48, 80)))
 
 '''no-fake data'''
 # data_idx_range = list(range(12))
@@ -67,7 +68,7 @@ Test Data
 #     data_idx_range.extend(list(range(12 + 16*i, 14 + 16*i)))
 
 '''data distance 80,90,100 cm'''
-data_idx_range = range(48)
+# data_idx_range = range(48)
 
 # parameters
 depth_threshold = 0.2
@@ -342,16 +343,22 @@ def main():
             ch_num = 1
 
     # model configuration
-    model = scc.build_network_model_difference_learn(
+    # model = network.build_unet_model(
+    #     batch_shape,
+    #     ch_num,
+    #     depth_threshold=depth_thre,
+    #     difference_threshold=difference_threshold,
+    #     # decay=decay,
+    #     drop_rate=dropout_rate,
+    #     # scaling=difference_scaling
+    #     )
+    model = network.build_resnet_model(
         batch_shape,
         ch_num,
         depth_threshold=depth_thre,
         difference_threshold=difference_threshold,
-        # decay=decay,
-        drop_rate=dropout_rate,
-        # scaling=difference_scaling
+        drop_rate=dropout_rate
         )
-    
 
     # resume
     model_dir = out_dir + '/model'

@@ -12,7 +12,7 @@ import io
 import sys
 import pandas as pd
 
-import shade_cnn_common as scc
+import network
 import depth_tools
 import common_tools
 import compare_error
@@ -26,7 +26,7 @@ ARGV
 argv = sys.argv
 _, out_dir, epoch_num, is_predict_norm = argv # output dir, epoch
 
-out_dir = '../output/' + out_dir
+out_dir = '../output/output_' + out_dir
 
 epoch_num = int(epoch_num)
 
@@ -96,6 +96,9 @@ Test Data
 # test data
 test_range = list(range(32, 48))
 
+train_range = list(range(32))
+train_range.extend(list(range(48, 80))) 
+
 # train data
 '''no-fake data'''
 # train_range = list(range(12))
@@ -111,7 +114,7 @@ test_range = list(range(32, 48))
 #     train_range.extend(list(range(12 + 16*i, 14 + 16*i)))
 
 '''data distance 80,90,100 cm'''
-train_range = range(48)
+# train_range = range(48)
 
 # save ply range
 save_ply_range = list(range(32, 48))
@@ -154,7 +157,8 @@ def main():
             ch_num = 1
 
     # model configuration
-    model = scc.build_network_model_difference_learn(batch_shape, ch_num)
+    # model = network.build_unet_model(batch_shape, ch_num)
+    model = network.build_resnet_model(batch_shape, ch_num)
     
     # log
     df_log = pd.read_csv(out_dir + '/training.log')
@@ -376,148 +380,147 @@ def main():
                 xyz_predict_masked = depth_tools.convert_depth_to_coords(predict_masked, cam_params)
                 depth_tools.dump_ply(predict_dir + '/predict_masked-%03d.ply'%test_idx, xyz_predict_masked.reshape(-1, 3).tolist())
 
-
-        # layout
-        fig = plt.figure(figsize=(8, 6))
-        gs_master = GridSpec(nrows=3,
-                             ncols=2,
-                             height_ratios=[1, 1, 1],
-                             width_ratios=[4, 0.1])
-        gs_1 = GridSpecFromSubplotSpec(nrows=1,
-                                       ncols=4,
-                                       subplot_spec=gs_master[0, 0],
-                                       wspace=0.05,
-                                       hspace=0)
-        gs_2 = GridSpecFromSubplotSpec(nrows=1,
-                                       ncols=4,
-                                       subplot_spec=gs_master[1, 0],
-                                       wspace=0.05,
-                                       hspace=0)
-
-        gs_3 = GridSpecFromSubplotSpec(nrows=1,
-                                       ncols=4,
-                                       subplot_spec=gs_master[2, 0],
-                                       wspace=0.05,
-                                       hspace=0)
-
-        gs_4 = GridSpecFromSubplotSpec(nrows=3,
-                                       ncols=1,
-                                       subplot_spec=gs_master[0:2, 1])
-
-        ax_reg0 = fig.add_subplot(gs_1[0, 0])
-        ax_reg1 = fig.add_subplot(gs_1[0, 1])
-        ax_reg2 = fig.add_subplot(gs_1[0, 2])
-        ax_reg3 = fig.add_subplot(gs_1[0, 3])
-
-        ax_enh0 = fig.add_subplot(gs_2[0, 0])
-        ax_enh1 = fig.add_subplot(gs_2[0, 1])
-        ax_enh2 = fig.add_subplot(gs_2[0, 2])
-        ax_enh3 = fig.add_subplot(gs_2[0, 3])
-
-        ax_misc0 = fig.add_subplot(gs_3[0, 0])
-
-        ax_cb0 = fig.add_subplot(gs_4[0, 0])
-        ax_cb1 = fig.add_subplot(gs_4[1, 0])
-
-        # rmse
-        ax_err_gap = fig.add_subplot(gs_3[0, 1])
-        ax_err = fig.add_subplot(gs_3[0, 2])
-        ax_err_masked = fig.add_subplot(gs_3[0, 3])
-        ax_cb2 = fig.add_subplot(gs_4[2, 0])
-
-        for ax in [
-                ax_reg0, ax_reg1, ax_reg2, ax_reg3, ax_enh0, ax_enh1, ax_enh2,
-                ax_enh3, ax_misc0, ax_err_gap, ax_err, ax_err_masked
-        ]:
-            ax.axis('off')
-
-        ax_reg0.imshow(depth_gt, vmin=vmin, vmax=vmax)
-        ax_reg1.imshow(depth_gap, vmin=vmin, vmax=vmax)
-        ax_reg2.imshow(predict_depth, vmin=vmin, vmax=vmax)
-        ax_reg3.imshow(predict_masked, vmin=vmin, vmax=vmax)
-
-        # close up
-        # mean = np.median(depth_gt)
-        mean = np.sum(depth_gt_masked) / mask_length
-        # vmin_s, vmax_s = mean - 0.05, mean + 0.05
-        vmin_s, vmax_s = mean - vm_range, mean + vm_range
-
-        ax_enh0.imshow(depth_gt, cmap='jet', vmin=vmin_s, vmax=vmax_s)
-        ax_enh1.imshow(depth_gap, cmap='jet', vmin=vmin_s, vmax=vmax_s)
-        ax_enh2.imshow(predict_depth, cmap='jet', vmin=vmin_s, vmax=vmax_s)
-        ax_enh3.imshow(predict_masked, cmap='jet', vmin=vmin_s, vmax=vmax_s)
-
-        # misc
-        ax_misc0.imshow(shading[:, :, ::-1])
-        # ax_misc1.imshow(train_segment, cmap='rainbow', vmin=0, vmax=2)
-
-        # error
-        # vmin_e, vmax_e = 0, 0.05
-        # vmin_e, vmax_e = 0, 0.02
-        # vmin_e, vmax_e = 0, 0.01
-        vmin_e, vmax_e = 0, vm_e_range
-        ax_err_gap.imshow(depth_err, cmap='jet', vmin=vmin_e, vmax=vmax_e)
-        ax_err.imshow(predict_err, cmap='jet', vmin=vmin_e, vmax=vmax_e)
-        ax_err_masked.imshow(predict_err_masked, cmap='jet', vmin=vmin_e, vmax=vmax_e)
-
-        # title
-        ax_reg0.set_title('GT')
-        ax_reg1.set_title('Depth')
-        ax_reg2.set_title('Predict')
-        ax_reg3.set_title('Masked predict')
-
-        # if test_idx in test_range:
+        # save fig
         if test_idx not in train_range:
-            ax_enh0.set_title('Test data')
-        else:
-            ax_enh0.set_title('Train data')
-        ax_enh1.set_title('Train epoch:{}'.format(epoch_num))
-        ax_enh2.set_title('Model epoch:{}'.format(idx_min_loss))
-        ax_enh3.set_title('Train loss:{:.6f}'.format(min_loss))
+            # layout
+            fig = plt.figure(figsize=(8, 6))
+            gs_master = GridSpec(nrows=3,
+                                ncols=2,
+                                height_ratios=[1, 1, 1],
+                                width_ratios=[4, 0.1])
+            gs_1 = GridSpecFromSubplotSpec(nrows=1,
+                                        ncols=4,
+                                        subplot_spec=gs_master[0, 0],
+                                        wspace=0.05,
+                                        hspace=0)
+            gs_2 = GridSpecFromSubplotSpec(nrows=1,
+                                        ncols=4,
+                                        subplot_spec=gs_master[1, 0],
+                                        wspace=0.05,
+                                        hspace=0)
 
-        ax_err_gap.set_title('Depth error:{:.6f}'.format(depth_loss))
-        ax_err_masked.set_title('Predict error:{:.6f}'.format(predict_loss))
+            gs_3 = GridSpecFromSubplotSpec(nrows=1,
+                                        ncols=4,
+                                        subplot_spec=gs_master[2, 0],
+                                        wspace=0.05,
+                                        hspace=0)
 
-        # colorbar
-        plt.tight_layout()
-        fig.savefig(io.BytesIO())
-        cb_offset = -0.05
+            gs_4 = GridSpecFromSubplotSpec(nrows=3,
+                                        ncols=1,
+                                        subplot_spec=gs_master[0:2, 1])
 
-        plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin, vmax=vmax)),
-                     cax=ax_cb0)
-        im_pos, cb_pos = ax_reg3.get_position(), ax_cb0.get_position()
-        ax_cb0.set_position([
-            cb_pos.x0 + cb_offset, im_pos.y0, cb_pos.x1 - cb_pos.x0,
-            im_pos.y1 - im_pos.y0
-        ])
+            ax_reg0 = fig.add_subplot(gs_1[0, 0])
+            ax_reg1 = fig.add_subplot(gs_1[0, 1])
+            ax_reg2 = fig.add_subplot(gs_1[0, 2])
+            ax_reg3 = fig.add_subplot(gs_1[0, 3])
 
-        plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin_s, vmax=vmax_s),
-                                    cmap='jet'),
-                     cax=ax_cb1)
-        im_pos, cb_pos = ax_enh3.get_position(), ax_cb1.get_position()
-        ax_cb1.set_position([
-            cb_pos.x0 + cb_offset, im_pos.y0, cb_pos.x1 - cb_pos.x0,
-            im_pos.y1 - im_pos.y0
-        ])
+            ax_enh0 = fig.add_subplot(gs_2[0, 0])
+            ax_enh1 = fig.add_subplot(gs_2[0, 1])
+            ax_enh2 = fig.add_subplot(gs_2[0, 2])
+            ax_enh3 = fig.add_subplot(gs_2[0, 3])
 
-        plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin_e, vmax=vmax_e),
-                                    cmap='jet'),
-                     cax=ax_cb2)
-        im_pos, cb_pos = ax_err.get_position(), ax_cb2.get_position()
-        ax_cb2.set_position([
-            cb_pos.x0 + cb_offset, im_pos.y0, cb_pos.x1 - cb_pos.x0,
-            im_pos.y1 - im_pos.y0
-        ])
+            ax_misc0 = fig.add_subplot(gs_3[0, 0])
 
-        if test_idx not in train_range:
-            plt.savefig(predict_dir + '/compare-{:03d}.png'.format(test_idx),
-                        dpi=300)
-        plt.close()
+            ax_cb0 = fig.add_subplot(gs_4[0, 0])
+            ax_cb1 = fig.add_subplot(gs_4[1, 0])
+
+            # rmse
+            ax_err_gap = fig.add_subplot(gs_3[0, 1])
+            ax_err = fig.add_subplot(gs_3[0, 2])
+            ax_err_masked = fig.add_subplot(gs_3[0, 3])
+            ax_cb2 = fig.add_subplot(gs_4[2, 0])
+
+            for ax in [
+                    ax_reg0, ax_reg1, ax_reg2, ax_reg3, ax_enh0, ax_enh1, ax_enh2,
+                    ax_enh3, ax_misc0, ax_err_gap, ax_err, ax_err_masked
+            ]:
+                ax.axis('off')
+
+            ax_reg0.imshow(depth_gt, vmin=vmin, vmax=vmax)
+            ax_reg1.imshow(depth_gap, vmin=vmin, vmax=vmax)
+            ax_reg2.imshow(predict_depth, vmin=vmin, vmax=vmax)
+            ax_reg3.imshow(predict_masked, vmin=vmin, vmax=vmax)
+
+            # close up
+            # mean = np.median(depth_gt)
+            mean = np.sum(depth_gt_masked) / mask_length
+            # vmin_s, vmax_s = mean - 0.05, mean + 0.05
+            vmin_s, vmax_s = mean - vm_range, mean + vm_range
+
+            ax_enh0.imshow(depth_gt, cmap='jet', vmin=vmin_s, vmax=vmax_s)
+            ax_enh1.imshow(depth_gap, cmap='jet', vmin=vmin_s, vmax=vmax_s)
+            ax_enh2.imshow(predict_depth, cmap='jet', vmin=vmin_s, vmax=vmax_s)
+            ax_enh3.imshow(predict_masked, cmap='jet', vmin=vmin_s, vmax=vmax_s)
+
+            # misc
+            ax_misc0.imshow(shading[:, :, ::-1])
+            # ax_misc1.imshow(train_segment, cmap='rainbow', vmin=0, vmax=2)
+
+            # error
+            # vmin_e, vmax_e = 0, 0.05
+            # vmin_e, vmax_e = 0, 0.02
+            # vmin_e, vmax_e = 0, 0.01
+            vmin_e, vmax_e = 0, vm_e_range
+            ax_err_gap.imshow(depth_err, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+            ax_err.imshow(predict_err, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+            ax_err_masked.imshow(predict_err_masked, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+
+            # title
+            ax_reg0.set_title('GT')
+            ax_reg1.set_title('Depth')
+            ax_reg2.set_title('Predict')
+            ax_reg3.set_title('Masked predict')
+
+            # if test_idx in test_range:
+            if test_idx not in train_range:
+                ax_enh0.set_title('Test data')
+            else:
+                ax_enh0.set_title('Train data')
+            ax_enh1.set_title('Train epoch:{}'.format(epoch_num))
+            ax_enh2.set_title('Model epoch:{}'.format(idx_min_loss))
+            ax_enh3.set_title('Train loss:{:.6f}'.format(min_loss))
+
+            ax_err_gap.set_title('Depth error:{:.6f}'.format(depth_loss))
+            ax_err_masked.set_title('Predict error:{:.6f}'.format(predict_loss))
+
+            # colorbar
+            plt.tight_layout()
+            fig.savefig(io.BytesIO())
+            cb_offset = -0.05
+
+            plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin, vmax=vmax)),
+                        cax=ax_cb0)
+            im_pos, cb_pos = ax_reg3.get_position(), ax_cb0.get_position()
+            ax_cb0.set_position([
+                cb_pos.x0 + cb_offset, im_pos.y0, cb_pos.x1 - cb_pos.x0,
+                im_pos.y1 - im_pos.y0
+            ])
+
+            plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin_s, vmax=vmax_s),
+                                        cmap='jet'),
+                        cax=ax_cb1)
+            im_pos, cb_pos = ax_enh3.get_position(), ax_cb1.get_position()
+            ax_cb1.set_position([
+                cb_pos.x0 + cb_offset, im_pos.y0, cb_pos.x1 - cb_pos.x0,
+                im_pos.y1 - im_pos.y0
+            ])
+
+            plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin_e, vmax=vmax_e),
+                                        cmap='jet'),
+                        cax=ax_cb2)
+            im_pos, cb_pos = ax_err.get_position(), ax_cb2.get_position()
+            ax_cb2.set_position([
+                cb_pos.x0 + cb_offset, im_pos.y0, cb_pos.x1 - cb_pos.x0,
+                im_pos.y1 - im_pos.y0
+            ])
+
+            plt.savefig(predict_dir + '/compare-{:03d}.png'.format(test_idx), dpi=300)
+            plt.close()
 
     with open(predict_dir + '/error_compare.txt', mode='w') as f:
         f.write(err_strings)
 
-    compare_error.compare_error(predict_dir)
+    compare_error.compare_error(predict_dir + '/')
 
 if __name__ == "__main__":
     main()

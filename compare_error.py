@@ -4,10 +4,11 @@ import matplotlib.pyplot as plt
 
 root_dir = '../output/output_archive/'
 data_dir = root_dir + '200124/'
+
 data_dir = '../output/'
 
 output_dir = 'output_'
-pred_dir = '/predict_500'
+# pred_dir = '/predict_500'
 pred_dir = '/predict_1000'
 save_dir = data_dir
 
@@ -81,7 +82,7 @@ def compare_errors(list_compares, comp_name='', data_dir=data_dir, output_dir=ou
     list_dir = get_list_dir(list_compares, data_dir, output_dir, pred_dir)
     label, depth = get_index_depth(list_dir[0])
     list_pred = get_list_pred(list_dir)
-    gen_graph(label, depth, list_pred, list_compares, comp_name)
+    gen_graph(label, depth, list_pred, list_compares, comp_name, save_dir=save_dir)
 
 
 def main():
