@@ -24,7 +24,7 @@ ARGV
 3: is predict norm
 '''
 argv = sys.argv
-_, out_dir, epoch_num, is_predict_norm = argv # output dir, epoch
+_, out_dir, epoch_num, net_type = argv # output dir, epoch
 
 out_dir = '../output/output_' + out_dir
 
@@ -58,8 +58,8 @@ is_save_ply = False
 
 # predict normalization
 # is_predict_norm = True 
-# is_predict_norm = False
-is_predict_norm = int(is_predict_norm)
+is_predict_norm = False
+# is_predict_norm = int(is_predict_norm)
 
 data_num = 48
 data_num = 80
@@ -87,7 +87,13 @@ vmin, vmax = (0.7, 1.3)
 vm_range = 0.05
 vm_e_range = 0.01
 
-data_idx_range = range(data_num)
+# data_idx_range = range(data_num)
+'''no-fake data'''
+data_idx_range = list(range(12))
+data_idx_range.extend(list(range(16, 28)))
+data_idx_range.extend(list(range(32, 44)))
+data_idx_range.extend(list(range(48, 60)))
+data_idx_range.extend(list(range(64, 76)))
 
 '''
 Test Data
@@ -96,16 +102,16 @@ Test Data
 # test data
 test_range = list(range(32, 48))
 
-train_range = list(range(32))
-train_range.extend(list(range(48, 80))) 
+# train_range = list(range(32))
+# train_range.extend(list(range(48, 80))) 
 
 # train data
 '''no-fake data'''
-# train_range = list(range(12))
-# train_range.extend(list(range(16, 28)))
+train_range = list(range(12))
+train_range.extend(list(range(16, 28)))
 # train_range.extend(list(range(32, 44)))
-# train_range.extend(list(range(48, 60)))
-# train_range.extend(list(range(64, 76)))
+train_range.extend(list(range(48, 60)))
+train_range.extend(list(range(64, 76)))
 
 '''no-rotate data'''
 # train_range = list()
@@ -157,8 +163,12 @@ def main():
             ch_num = 1
 
     # model configuration
-    # model = network.build_unet_model(batch_shape, ch_num)
-    model = network.build_resnet_model(batch_shape, ch_num)
+    if net_type is '0':
+        model = network.build_unet_model(batch_shape, ch_num)
+    elif net_type is '1':
+        model = network.build_resnet_model(batch_shape, ch_num)
+    elif net_type is '2':
+        model = network.build_dense_resnet_model(batch_shape, ch_num)
     
     # log
     df_log = pd.read_csv(out_dir + '/training.log')

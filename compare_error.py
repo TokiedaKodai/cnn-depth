@@ -8,8 +8,8 @@ data_dir = root_dir + '200124/'
 data_dir = '../output/'
 
 output_dir = 'output_'
-# pred_dir = '/predict_500'
-pred_dir = '/predict_1000'
+pred_dir = '/predict_500'
+# pred_dir = '/predict_1000'
 save_dir = data_dir
 
 def get_index_depth(dirname, index=[], type_name='test', error='RMSE'):
@@ -86,8 +86,18 @@ def compare_errors(list_compares, comp_name='', data_dir=data_dir, output_dir=ou
 
 
 def main():
-    list_compares = ['no-aug', 'aug_zoom', 'aug']
-    compare_errors(list_compares, 'zoom')
+    # list_compares = ['no-aug', 'aug_zoom', 'aug']
+    # list_compares = ['no-drop', 'drop-10', 'drop-20', 'drop-30']
+
+    list_compares = ['unet_drop=0', 'unet_drop=10', 'unet_drop=20', 'unet_aug']
+    # list_compares = ['resnet_drop=0', 'resnet_drop=10', 'resnet_drop=20', 'resnet_aug']
+    # list_compares = ['dense-resnet_drop=0', 'dense-resnet_drop=10', 'dense-resnet_drop=20', 'dense-resnet_aug']
+
+    # list_compares = ['unet_no-drop', 'resnet_no-drop', 'dense-resnet_no-drop']
+    # list_compares = ['unet_drop-10', 'resnet_drop-10', 'dense-resnet_drop-10']
+    # list_compares = ['unet_drop-20', 'resnet_drop-20', 'dense-resnet_drop-20']
+    # list_compares = ['unet_drop-30', 'resnet_drop-30', 'dense-resnet_drop-30']
+    compare_errors(list_compares, 'unet_drops-aug')
 
 
     # dir1 = root_dir + '200122/output_aug/predict_1000/'

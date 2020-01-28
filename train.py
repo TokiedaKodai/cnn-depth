@@ -25,7 +25,7 @@ ARGV
 4-6: parameter
 '''
 argv = sys.argv
-_, out_local, is_model_exist, epoch_num, augment_rate, augment_type, dropout = argv
+_, out_local, is_model_exist, epoch_num, augment_rate, augment_type, dropout, net_type = argv
 
 os.chdir(os.path.dirname(os.path.abspath(__file__))) #set currenct dir
 
@@ -51,15 +51,15 @@ Test Data
 100cm : 32 - 47
 '''
 '''data index'''
-data_idx_range = list(range(32))
-data_idx_range.extend(list(range(48, 80)))
+# data_idx_range = list(range(32))
+# data_idx_range.extend(list(range(48, 80)))
 
 '''no-fake data'''
-# data_idx_range = list(range(12))
-# data_idx_range.extend(list(range(16, 28)))
+data_idx_range = list(range(12))
+data_idx_range.extend(list(range(16, 28)))
 # data_idx_range.extend(list(range(32, 44)))
-# data_idx_range.extend(list(range(48, 60)))
-# data_idx_range.extend(list(range(64, 76)))
+data_idx_range.extend(list(range(48, 60)))
+data_idx_range.extend(list(range(64, 76)))
 
 '''no-rotate data'''
 # data_idx_range = list()
@@ -102,7 +102,7 @@ is_augment = True
 # is_augment = False
 
 # zoom_range=[0.8, 1.2]
-zoom_range=[0.8, 1.0]
+zoom_range=[0.9, 1.1]
 
 augment_rate = int(augment_rate)
 if augment_rate == 0:
@@ -343,22 +343,32 @@ def main():
             ch_num = 1
 
     # model configuration
-    # model = network.build_unet_model(
-    #     batch_shape,
-    #     ch_num,
-    #     depth_threshold=depth_thre,
-    #     difference_threshold=difference_threshold,
-    #     # decay=decay,
-    #     drop_rate=dropout_rate,
-    #     # scaling=difference_scaling
-    #     )
-    model = network.build_resnet_model(
-        batch_shape,
-        ch_num,
-        depth_threshold=depth_thre,
-        difference_threshold=difference_threshold,
-        drop_rate=dropout_rate
-        )
+    if net_type is '0':
+        model = network.build_unet_model(
+            batch_shape,
+            ch_num,
+            depth_threshold=depth_thre,
+            difference_threshold=difference_threshold,
+            # decay=decay,
+            drop_rate=dropout_rate,
+            # scaling=difference_scaling
+            )
+    elif net_type is '1':
+        model = network.build_resnet_model(
+            batch_shape,
+            ch_num,
+            depth_threshold=depth_thre,
+            difference_threshold=difference_threshold,
+            drop_rate=dropout_rate
+            )
+    elif net_type is '2':
+        model = network.build_dense_resnet_model(
+            batch_shape,
+            ch_num,
+            depth_threshold=depth_thre,
+            difference_threshold=difference_threshold,
+            drop_rate=dropout_rate
+            )
 
     # resume
     model_dir = out_dir + '/model'
@@ -379,8 +389,8 @@ def main():
     else:
         # model_file, initial_epoch = resume_from
         initial_epoch = resume_from
-        # model_file = model_dir + '/model-best.hdf5'
-        model_file = model_dir + '/model-final.hdf5'
+        model_file = model_dir + '/model-best.hdf5'
+        # model_file = model_dir + '/model-final.hdf5'
         # print('resume from ', model_file, ', epoch number', initial_epoch)
 
     if resume_from is not None:
