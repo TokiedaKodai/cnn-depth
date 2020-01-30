@@ -89,35 +89,44 @@ vm_e_range = 0.01
 
 # data_idx_range = range(data_num)
 '''no-fake data'''
-data_idx_range = list(range(12))
-data_idx_range.extend(list(range(16, 28)))
-data_idx_range.extend(list(range(32, 44)))
-data_idx_range.extend(list(range(48, 60)))
-data_idx_range.extend(list(range(64, 76)))
+# data_idx_range = list(range(12))
+# data_idx_range.extend(list(range(16, 28)))
+# data_idx_range.extend(list(range(32, 44)))
+# data_idx_range.extend(list(range(48, 60)))
+# data_idx_range.extend(list(range(64, 76)))
 
 '''
 Test Data
 100cm : 32 - 47
 '''
 # test data
-test_range = list(range(32, 48))
+# test_range = list(range(32, 48))
 
 # train_range = list(range(32))
 # train_range.extend(list(range(48, 80))) 
 
 # train data
 '''no-fake data'''
-train_range = list(range(12))
-train_range.extend(list(range(16, 28)))
+# train_range = list(range(12))
+# train_range.extend(list(range(16, 28)))
 # train_range.extend(list(range(32, 44)))
-train_range.extend(list(range(48, 60)))
-train_range.extend(list(range(64, 76)))
+# train_range.extend(list(range(48, 60)))
+# train_range.extend(list(range(64, 76)))
 
 '''no-rotate data'''
-# train_range = list()
+train_range = list()
 # for i in range(5):
 #     train_range.extend(list(range(0 + 16*i, 6 + 16*i)))
 #     train_range.extend(list(range(12 + 16*i, 14 + 16*i)))
+for i in range(5):
+    # train_range.extend([0 + 16*i, 3 + 16*i, 12 + 16*i, 13 + 16*i])
+    train_range.extend([0 + 16*i, 3 + 16*i])
+
+data_idx_range = list()
+for i in range(5):
+    # data_idx_range.extend([0 + 16*i, 3 + 16*i, 6 + 16*i, 9 + 16*i, 
+    #                         12 + 16*i, 13 + 16*i, 14 + 16*i, 15 + 16*i])
+    data_idx_range.extend([0 + 16*i, 3 + 16*i, 6 + 16*i, 9 + 16*i])
 
 '''data distance 80,90,100 cm'''
 # train_range = range(48)

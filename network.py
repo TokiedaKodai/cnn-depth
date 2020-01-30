@@ -93,7 +93,7 @@ def build_dense_resnet_model(batch_shape,
     r4_1 = UpSampling2D((2, 2))(r4_2)
     r4_0 = UpSampling2D((2, 2))(r4_1)
 
-    r5 = concatenate([r0_2, r1_2, r2_2, r3, r4_2])
+    r5 = concatenate([r0_2, r1_2, r2_2, r3, r4_2]) 
     r5 = decode_block(r5)
     r5_1 = UpSampling2D((2, 2))(r5)
     r5_0 = UpSampling2D((2, 2))(r5_1)
