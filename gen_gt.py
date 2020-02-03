@@ -5,24 +5,32 @@ import time
 import common_tools as tool
 import depth_tools
 
-DIR = 'input_200117/'
+DIR = '../data/input_200201/'
 
-idx = range(80)
+idx = range(60)
 
 # input_200117
+# cam_params = {
+#     'focal_length': 0.037297750000000005,
+#     'pix_x': 1.25e-05,
+#     'pix_y': 1.237130414015908e-05,
+#     'center_x': 826.396,
+#     'center_y': 578.887
+# }
+# input_200201
 cam_params = {
-    'focal_length': 0.037297750000000005,
+    'focal_length': 0.037306625,
     'pix_x': 1.25e-05,
-    'pix_y': 1.237130414015908e-05,
-    'center_x': 826.396,
-    'center_y': 578.887
+    'pix_y': 1.2360472397638345e-05,
+    'center_x': 801.557,
+    'center_y': 555.618
 }
 
 time_start = time.time()
 
 for i in tqdm(idx):
-    gt_ori = cv2.imread(DIR + 'gt-original/gt{:03d}.bmp'.format(i), -1)
-    gt_mask = cv2.imread(DIR + 'gt-mask/mask{:03d}.bmp'.format(i), -1)
+    gt_ori = cv2.imread(DIR + 'gt_original/gt{:03d}.bmp'.format(i), -1)
+    gt_mask = cv2.imread(DIR + 'gt_mask/mask{:03d}.bmp'.format(i), -1)
 
     gt_img = tool.delete_mask(gt_ori, gt_mask)
     gt = depth_tools.unpack_bmp_bgra_to_float(gt_img)
