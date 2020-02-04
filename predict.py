@@ -35,7 +35,7 @@ is_shading_norm = True
 
 # parameters
 depth_threshold = 0.2
-difference_threshold = 0.01
+difference_threshold = 0.005
 patch_remove = 0.5
 difference_scaling = 100
 
@@ -51,7 +51,7 @@ save_period = 1
 select_range = epoch_num
 
 #InputData
-src_dir = '../data/input_200117'
+src_dir = '../data/input_200201'
 
 # save predict depth PLY file
 is_save_ply = False
@@ -61,15 +61,14 @@ is_save_ply = False
 is_predict_norm = False
 # is_predict_norm = int(is_predict_norm)
 
-data_num = 48
-data_num = 80
-if epoch_num == 1000:
+data_num = 40
+# data_num = 60
+# if epoch_num == 1000:
     # is_save_ply = True
-    data_num = 80
+    # data_num = 60
 
 # select from val loss
 is_select_val = True
-# is_select_val = False
 
 if is_predict_norm:
     if is_select_val:
@@ -82,80 +81,48 @@ else:
     else:
         predict_dir = out_dir + '/predict_{}_loss'.format(epoch_num)
 
-vmin, vmax = (0.7, 1.3)
-# vmin, vmax = (0.6, 1.3)
+vmin, vmax = (0.8, 1.4)
 vm_range = 0.05
 vm_e_range = 0.01
 
-# data_idx_range = range(data_num)
+data_idx_range = range(data_num)
+
 '''no-fake data'''
-# data_idx_range = list(range(12))
-# data_idx_range.extend(list(range(16, 28)))
-# data_idx_range.extend(list(range(32, 44)))
-# data_idx_range.extend(list(range(48, 60)))
-# data_idx_range.extend(list(range(64, 76)))
 
 '''
 Test Data
-100cm : 32 - 47
+110cm : 16 - 23
 '''
 # test data
-# test_range = list(range(32, 48))
-
-# train_range = list(range(32))
-# train_range.extend(list(range(48, 80))) 
+test_range = list(range(16, 24))
 
 # train data
+train_range = list(range(16))
+train_range.extend(list(range(24, 40)))
+
 '''no-fake data'''
-# train_range = list(range(12))
-# train_range.extend(list(range(16, 28)))
-# train_range.extend(list(range(32, 44)))
-# train_range.extend(list(range(48, 60)))
-# train_range.extend(list(range(64, 76)))
 
 '''no-rotate data'''
-train_range = list()
-# for i in range(5):
-#     train_range.extend(list(range(0 + 16*i, 6 + 16*i)))
-#     train_range.extend(list(range(12 + 16*i, 14 + 16*i)))
-for i in range(5):
-    # train_range.extend([0 + 16*i, 3 + 16*i, 12 + 16*i, 13 + 16*i])
-    train_range.extend([0 + 16*i, 3 + 16*i])
-
-data_idx_range = list()
-for i in range(5):
-    # data_idx_range.extend([0 + 16*i, 3 + 16*i, 6 + 16*i, 9 + 16*i, 
-    #                         12 + 16*i, 13 + 16*i, 14 + 16*i, 15 + 16*i])
-    data_idx_range.extend([0 + 16*i, 3 + 16*i, 6 + 16*i, 9 + 16*i])
-
-'''data distance 80,90,100 cm'''
-# train_range = range(48)
-
 # save ply range
-save_ply_range = list(range(32, 48))
+save_ply_range = list(range(16, 24))
 
 
 batch_shape = (1200, 1200)
 # batch_shape = (600, 600)
 batch_tl = (0, 0)  # top, left
 
-# cam_params = {
-#     'focal_length': 0.0360735,
-#     'pix_x': 1.25e-05,
-#     'pix_y': 1.2298133469700845e-05,
-#     'center_x': 826.974,
-#     'center_y': 543.754
-# }
+# input_200201
 cam_params = {
-    'focal_length': 0.036640125,
+    'focal_length': 0.037306625,
     'pix_x': 1.25e-05,
-    'pix_y': 1.2303973256411377e-05,
-    'center_x': 801.895,
-    'center_y': 602.872
+    'pix_y': 1.2360472397638345e-05,
+    'center_x': 801.557,
+    'center_y': 555.618
 }
 
 def main():
-    src_rec_dir = src_dir + '/rec'
+    # src_rec_dir = src_dir + '/rec'
+    src_rec_dir = src_dir + '/rec_ajusted'
     src_frame_dir = src_dir + '/frame'
     src_gt_dir = src_dir + '/gt'
     src_shading_dir = src_dir + '/shading'
@@ -230,14 +197,17 @@ def main():
     os.makedirs(predict_dir, exist_ok=True)
     for test_idx in tqdm(data_idx_range):
         src_bgra = src_frame_dir + '/frame{:03d}.png'.format(test_idx)
-        src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(test_idx)
+        # src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(test_idx)
+        src_depth_gap = src_rec_dir + '/depth{:03d}.bmp'.format(test_idx)
         src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(test_idx)
-        src_shading = src_shading_dir + '/shading{:03d}.png'.format(test_idx)
+        # src_shading = src_shading_dir + '/shading{:03d}.png'.format(test_idx)
+        src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(test_idx)
 
         # read images
         bgr = cv2.imread(src_bgra, -1) / 255.
         depth_img_gap = cv2.imread(src_depth_gap, -1)
-        depth_gap = depth_tools.unpack_png_to_float(depth_img_gap)
+        # depth_gap = depth_tools.unpack_png_to_float(depth_img_gap)
+        depth_gap = depth_tools.unpack_bmp_bgra_to_float(depth_img_gap)
 
         depth_img_gt = cv2.imread(src_depth_gt, -1)
         depth_gt = depth_tools.unpack_bmp_bgra_to_float(depth_img_gt)

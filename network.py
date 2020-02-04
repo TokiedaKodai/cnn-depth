@@ -93,7 +93,7 @@ def build_dense_resnet_model(batch_shape,
     r4_1 = UpSampling2D((2, 2))(r4_2)
     r4_0 = UpSampling2D((2, 2))(r4_1)
 
-    r5 = concatenate([r0_2, r1_2, r2_2, r3, r4_2]) 
+    r5 = concatenate([r0_2, r1_2, r2_2, r3, r4_2])
     r5 = decode_block(r5)
     r5_1 = UpSampling2D((2, 2))(r5)
     r5_0 = UpSampling2D((2, 2))(r5_1)
@@ -256,6 +256,106 @@ def build_resnet_model(batch_shape,
 
 ''' U-Net '''
 def build_unet_model(batch_shape,
+                        ch_num,
+                        depth_threshold=0.1,
+                        difference_threshold=0.05,
+                        drop_rate=0.1,
+                        scaling=100):
+    def encode_block(x, ch):
+        def base_block(x):
+            x = BatchNormalization()(x)
+            x = Activation('tanh')(x)
+            x = Dropout(rate=drop_rate)(x)
+            x = Conv2D(ch, (3, 3), padding='same')(x)
+            return x
+        
+        x = base_block(x)
+        x = base_block(x)
+        return x
+    
+    def decode_block(x, c, ch):
+        ch = ch
+        def base_block(x):
+            x = BatchNormalization()(x)
+            x = Activation('tanh')(x)
+            x = Dropout(rate=drop_rate)(x)
+            x = Conv2DTranspose(ch, (3, 3), padding='same')(x)
+            return x
+        
+        x = Conv2DTranspose(ch, (3, 3), padding='same')(x)
+        x = UpSampling2D((2, 2))(x)
+        x = concatenate([x, c])
+
+        x = base_block(x)
+        x = base_block(x)
+        return x
+    
+    input_batch = Input(shape=(*batch_shape, ch_num))
+    e0 = Conv2D(8, (1, 1), padding='same')(input_batch)
+    e0 = Activation('tanh')(e0)
+
+    e0 = encode_block(e0, 16)
+
+    e1 = AveragePooling2D((2, 2))(e0)
+    e1 = encode_block(e1, 32)
+
+    e2 = AveragePooling2D((2, 2))(e1)
+    e2 = encode_block(e2, 64)
+
+    e3 = AveragePooling2D((2, 2))(e2)
+    e3 = encode_block(e3, 128)
+
+    d2 = decode_block(e3, e2, 64)
+    d1 = decode_block(d2, e1, 32)
+    d0 = decode_block(d1, e0, 16)
+
+    d0 = Conv2D(2, (1, 1), padding='same')(d0)
+    output_batch = Activation('tanh')(d0)
+
+    def mean_squared_error_difference_learn(y_true, y_pred):
+        depth_gt = y_true[:, :, :, 0]
+        depth_gap = y_true[:, :, :, 1]
+
+        is_gt_available = depth_gt > depth_threshold
+        is_gap_unavailable = depth_gap < depth_threshold
+
+        is_depth_close = K.all(K.stack([
+            K.abs(depth_gap - depth_gt) < difference_threshold, is_gt_available], axis=0), axis=0)
+
+        # difference learn
+        gt = depth_gt - depth_gap
+
+        # scale
+        gt = gt * scaling
+
+        # complement
+        is_complement = False
+        if is_complement:
+            is_to_interpolate = K.all(K.stack(
+                [is_gt_available, is_gap_unavailable], axis=0),
+                                    axis=0)
+            is_valid = K.any(K.stack([is_to_interpolate, is_depth_close], axis=0),
+                            axis=0)
+            # is_valid = K.cast(is_valid, float)
+            is_valid = K.cast(is_valid, 'float32')
+        else:
+            # is_valid = K.cast(is_depth_close, float)
+            is_valid = K.cast(is_depth_close, 'float32')
+
+        valid_length = K.sum(is_valid)
+        err = K.sum(K.square(gt - y_pred[:, :, :, 0]) * is_valid)
+        return err / valid_length
+
+    model = Model(input_batch, output_batch)
+    # adam = optimizers.Adam(lr=lr, decay=decay)
+    model.compile(optimizer='adam',
+                  metrics=['accuracy'],
+                  loss=mean_squared_error_difference_learn)
+    return model
+
+
+''' U-Net old '''
+def build_unet_model_old(batch_shape,
                     ch_num,
                     depth_threshold=0.1,
                     difference_threshold=0.05,
@@ -370,7 +470,7 @@ def build_unet_model(batch_shape,
 
 
 ''' U-Net old '''
-def build_unet_model_old(batch_shape,
+def build_unet_model_old_1(batch_shape,
                     ch_num,
                     depth_threshold=0.1,
                     difference_threshold=0.05,

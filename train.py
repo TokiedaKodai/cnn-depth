@@ -30,7 +30,7 @@ _, out_local, is_model_exist, epoch_num, augment_rate, augment_type, dropout, ne
 os.chdir(os.path.dirname(os.path.abspath(__file__))) #set currenct dir
 
 #InputData
-src_dir = '../data/input_200117'
+src_dir = '../data/input_200201'
 
 #RemoteOutput
 out_dir = 'output'
@@ -48,34 +48,20 @@ if is_local_train:
 
 '''
 Test Data
-100cm : 32 - 47
+110cm : 16 - 23
 '''
 '''data index'''
-# data_idx_range = list(range(32))
-# data_idx_range.extend(list(range(48, 80)))
+data_idx_range = list(range(16))
+data_idx_range.extend(list(range(24, 40)))
 
 '''no-fake data'''
-# data_idx_range = list(range(12))
-# data_idx_range.extend(list(range(16, 28)))
-# data_idx_range.extend(list(range(32, 44)))
-# data_idx_range.extend(list(range(48, 60)))
-# data_idx_range.extend(list(range(64, 76)))
 
 '''no-rotate data'''
-data_idx_range = list()
-# for i in range(5):
-#     data_idx_range.extend(list(range(0 + 16*i, 6 + 16*i)))
-#     data_idx_range.extend(list(range(12 + 16*i, 14 + 16*i)))
-for i in range(5):
-    # data_idx_range.extend([0 + 16*i, 3 + 16*i, 12 + 16*i, 13 + 16*i])
-    data_idx_range.extend([0 + 16*i, 3 + 16*i])
 
-'''data distance 80,90,100 cm'''
-# data_idx_range = range(48)
 
 # parameters
 depth_threshold = 0.2
-difference_threshold = 0.01
+difference_threshold = 0.005
 patch_remove = 0.5
 # dropout_rate = 0.12
 dropout_rate = int(dropout) / 100
@@ -224,7 +210,8 @@ def prepare_data(data_idx_range):
         w = size[1]
         return img[t:t + h, l:l + w]
 
-    src_rec_dir = src_dir + '/rec'
+    # src_rec_dir = src_dir + '/rec'
+    src_rec_dir = src_dir + '/rec_ajusted'
     src_frame_dir = src_dir + '/frame'
     src_gt_dir = src_dir + '/gt'
     src_shading_dir = src_dir + '/shading'
@@ -235,14 +222,17 @@ def prepare_data(data_idx_range):
     y_train = []
     for data_idx in tqdm(data_idx_range):
         src_bgra = src_frame_dir + '/frame{:03d}.png'.format(data_idx)
-        src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(data_idx)
+        # src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(data_idx)
+        src_depth_gap = src_rec_dir + '/depth{:03d}.bmp'.format(data_idx)
         src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(data_idx)
-        src_shading = src_shading_dir + '/shading{:03d}.png'.format(data_idx)
+        # src_shading = src_shading_dir + '/shading{:03d}.png'.format(data_idx)
+        src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(data_idx)
 
         # read images
         bgr = cv2.imread(src_bgra, -1) / 255.
         depth_img_gap = cv2.imread(src_depth_gap, -1)
-        depth_gap = depth_tools.unpack_png_to_float(depth_img_gap)
+        # depth_gap = depth_tools.unpack_png_to_float(depth_img_gap)
+        depth_gap = depth_tools.unpack_bmp_bgra_to_float(depth_img_gap)
 
         depth_img_gt = cv2.imread(src_depth_gt, -1)
         depth_gt = depth_tools.unpack_bmp_bgra_to_float(depth_img_gt)

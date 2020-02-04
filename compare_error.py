@@ -8,8 +8,8 @@ data_dir = root_dir + '200124/'
 data_dir = '../output/'
 
 output_dir = 'output_'
-pred_dir = '/predict_200'
-# pred_dir = '/predict_500'
+# pred_dir = '/predict_200'
+pred_dir = '/predict_500'
 # pred_dir = '/predict_1000'
 save_dir = data_dir
 
@@ -90,8 +90,14 @@ def compare_errors(list_compares, comp_name='', data_dir=data_dir, output_dir=ou
 
 def main():
     # list_compares = ['unet_drop=0', 'unet_drop=5', 'unet_drop=10', 'unet_drop=20']
+    list_compares = ['unet_no-aug', 'unet_drop-5', 'unet_drop-10', 'unet_drop-20']
+    compare_errors(list_compares, 'unet_drops')
     # list_compares = ['resnet_drop=0', 'resnet_drop=5', 'resnet_drop=10', 'resnet_drop=20']
+    list_compares = ['resnet_no-aug', 'resnet_drop-5', 'resnet_drop-10', 'resnet_drop-20']
+    compare_errors(list_compares, 'resnet_drops')
     # list_compares = ['dense-resnet_drop=0', 'dense-resnet_drop=5', 'dense-resnet_drop=10', 'dense-resnet_drop=20']
+    list_compares = ['dense-resnet_no-aug', 'dense-resnet_drop-5', 'dense-resnet_drop-10', 'dense-resnet_drop-20']
+    compare_errors(list_compares, 'dense-resnet_drops')
 
     list_compares = ['unet_no-aug', 'unet_aug-no-zoom', 'unet_aug']
     compare_errors(list_compares, 'unet_augs')
@@ -101,9 +107,12 @@ def main():
     compare_errors(list_compares, 'dense-resnet_augs')
 
     # list_compares = ['unet_drop=0', 'resnet_drop=0', 'dense-resnet_drop=0']
-    # list_compares = ['unet_drop=5', 'resnet_drop=5', 'dense-resnet_drop=5']
-    # list_compares = ['unet_drop=10', 'resnet_drop=10', 'dense-resnet_drop=10']
-    # list_compares = ['unet_drop=20', 'resnet_drop=20', 'dense-resnet_drop=20']
+    list_compares = ['unet_drop-5', 'resnet_drop-5', 'dense-resnet_drop-5']
+    compare_errors(list_compares, 'nets_drop-5')
+    list_compares = ['unet_drop-10', 'resnet_drop-10', 'dense-resnet_drop-10']
+    compare_errors(list_compares, 'nets_drop-10')
+    list_compares = ['unet_drop-20', 'resnet_drop-20', 'dense-resnet_drop-20']
+    compare_errors(list_compares, 'nets_drop-20')
 
     list_compares = ['unet_no-aug', 'resnet_no-aug', 'dense-resnet_no-aug']
     compare_errors(list_compares, 'nets_no-aug')
