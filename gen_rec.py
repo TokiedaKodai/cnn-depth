@@ -29,7 +29,8 @@ cam_params = {
 depth_threshold = 0.2
 difference_threshold = 0.005
 
-data_idx_range = range(40)
+# data_idx_range = range(40)
+data_idx_range = range(40, 60)
 
 list_thre = [10, 15]
 list_bias = [0, 5, -5]
@@ -41,7 +42,7 @@ for idx in tqdm(data_idx_range):
         rec_idx = idx % 8 + 1
     else:
         datatype = 'f'
-        distance = int(idx - 40 / 8) * 10 + 90
+        distance = int((idx - 40) / 4) * 10 + 90
         rec_idx = (idx - 40) % 4 + 1
 
     src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(idx)

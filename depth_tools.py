@@ -97,7 +97,8 @@ def generate_faces(shape, mask=None):
 def dump_ply(filename, points, colors=None, faces=None):
     params = []
 
-    minimum = 0.00001
+    # minimum = 0.00001
+    minimum = 0.2
 
     # params.append(len(points))
     arr_points = np.array(points)
