@@ -27,6 +27,7 @@ argv = sys.argv
 _, out_dir, epoch_num, net_type = argv # output dir, epoch
 
 out_dir = '../output/output_' + out_dir
+# out_dir = '../output/archive/200203/output_' + out_dir
 
 epoch_num = int(epoch_num)
 
@@ -35,7 +36,8 @@ is_shading_norm = True
 
 # parameters
 depth_threshold = 0.2
-difference_threshold = 0.005
+# difference_threshold = 0.005
+difference_threshold = 0.003
 patch_remove = 0.5
 difference_scaling = 100
 
@@ -54,6 +56,7 @@ select_range = epoch_num
 src_dir = '../data/input_200201'
 
 # save predict depth PLY file
+is_save_ply = True
 is_save_ply = False
 
 # predict normalization
@@ -61,51 +64,69 @@ is_save_ply = False
 is_predict_norm = False
 # is_predict_norm = int(is_predict_norm)
 
+# select from val loss
+# is_select_val = True
+is_select_val = False
+
+# if is_predict_norm:
+#     if is_select_val:
+#         predict_dir = out_dir + '/predict_{}_norm'.format(epoch_num)
+#     else:
+#         predict_dir = out_dir + '/predict_{}_norm_loss'.format(epoch_num)
+# else:
+#     if is_select_val:
+#         predict_dir = out_dir + '/predict_{}'.format(epoch_num)
+#         # predict_dir = out_dir + '/predict_{}_fake'.format(epoch_num)
+#     else:
+#         predict_dir = out_dir + '/predict_{}_loss'.format(epoch_num)
+
+predict_dir = out_dir + '/predict_{}'.format(epoch_num)
+
 data_num = 40
-# data_num = 60
+data_num = 60
 # if epoch_num == 1000:
     # is_save_ply = True
     # data_num = 60
 
-# select from val loss
-is_select_val = True
-
-if is_predict_norm:
-    if is_select_val:
-        predict_dir = out_dir + '/predict_{}_norm'.format(epoch_num)
-    else:
-        predict_dir = out_dir + '/predict_{}_norm_loss'.format(epoch_num)
-else:
-    if is_select_val:
-        predict_dir = out_dir + '/predict_{}'.format(epoch_num)
-    else:
-        predict_dir = out_dir + '/predict_{}_loss'.format(epoch_num)
-
-vmin, vmax = (0.8, 1.4)
-vm_range = 0.05
-vm_e_range = 0.01
-
-data_idx_range = range(data_num)
-
-'''no-fake data'''
+# data_idx_range = list(range(data_num))
+# data_idx_range.extend(list(range(48, 52)))
+# data_idx_range = range(40, 60)
+data_idx_range = list()
+for i in range(5):
+    data_idx_range.extend([0+8*i, 1+8*i, 3+8*i, 6+8*i])
 
 '''
 Test Data
 110cm : 16 - 23
 '''
 # test data
-test_range = list(range(16, 24))
+# test_range = list(range(16, 24))
+# test_range.extend(list(range(48, 52)))
+test_range = list()
+for i in range(5):
+    test_range.extend([3+8*i, 6+8*i])
 
 # train data
-train_range = list(range(16))
-train_range.extend(list(range(24, 40)))
-
 '''no-fake data'''
-
+# train_range = list(range(16))
+# train_range.extend(list(range(24, 40)))
+'''fake data'''
+# train_range.extend(list(range(40, 48)))
+# train_range.extend(list(range(52, 60)))
 '''no-rotate data'''
-# save ply range
-save_ply_range = list(range(16, 24))
+train_range = [0, 1, 8, 9, 16, 17, 24, 25, 32, 33]
 
+# train_range = list()
+# for i in range(5):
+#     train_range.extend([0+8*i, 1+8*i, 3+8*i, 6+8*i])
+
+# save ply range
+save_ply_range = test_range
+
+vmin, vmax = (0.8, 1.4)
+vm_range = 0.05
+# vm_e_range = 0.01
+vm_e_range = 0.005
 
 batch_shape = (1200, 1200)
 # batch_shape = (600, 600)
@@ -345,8 +366,8 @@ def main():
         depth_RMSE = np.sqrt(depth_MSE)
 
         err_strings += str(test_idx)
-        # if test_idx in test_range:
-        if test_idx not in train_range:
+        if test_idx in test_range:
+        # if test_idx not in train_range:
             err_strings += ',test,'
         else:
             err_strings += ',train,'
@@ -370,7 +391,8 @@ def main():
                 depth_tools.dump_ply(predict_dir + '/predict_masked-%03d.ply'%test_idx, xyz_predict_masked.reshape(-1, 3).tolist())
 
         # save fig
-        if test_idx not in train_range:
+        if test_idx in test_range:
+        # if test_idx not in train_range:
             # layout
             fig = plt.figure(figsize=(8, 6))
             gs_master = GridSpec(nrows=3,
@@ -460,8 +482,8 @@ def main():
             ax_reg2.set_title('Predict')
             ax_reg3.set_title('Masked predict')
 
-            # if test_idx in test_range:
-            if test_idx not in train_range:
+            if test_idx in test_range:
+            # if test_idx not in train_range:
                 ax_enh0.set_title('Test data')
             else:
                 ax_enh0.set_title('Train data')

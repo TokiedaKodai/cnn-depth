@@ -51,23 +51,32 @@ Test Data
 110cm : 16 - 23
 '''
 '''data index'''
-data_idx_range = list(range(16))
-data_idx_range.extend(list(range(24, 40)))
-
-'''no-fake data'''
-
+# data_idx_range = list(range(16))
+# data_idx_range.extend(list(range(24, 40)))
+'''fake data'''
+# data_idx_range.extend(list(range(40, 48)))
+# data_idx_range.extend(list(range(52, 60)))
 '''no-rotate data'''
+data_idx_range = [0, 1, 8, 9, 16, 17, 24, 25, 32, 33]
 
+# data_idx_range = list()
+# for i in range(5):
+#     data_idx_range.extend([0+8*i, 1+8*i, 3+8*i, 6+8*i])
 
 # parameters
 depth_threshold = 0.2
-difference_threshold = 0.005
+# difference_threshold = 0.005
+difference_threshold = 0.003
 patch_remove = 0.5
 # dropout_rate = 0.12
 dropout_rate = int(dropout) / 100
 
 # model
 save_period = 10
+
+# monitor train loss or val loss
+# monitor_loss = 'val_loss'
+monitor_loss = 'loss'
 
 # input
 is_input_depth = True
@@ -80,16 +89,23 @@ batch_shape = (120, 120)
 batch_tl = (0, 0)  # top, left
 
 train_batch_size = 64
-# val_rate = 0.1
-val_rate = 0.3
+# train_batch_size = 128
+
+val_rate = 0.1
+# val_rate = 0.3
 
 # progress bar
 verbose = 1
+verbose = 0
 
 # augmentation
 is_augment = True
 # is_augment = False
 
+shift_max = 0.1
+# shift_max = 0.2
+rotate_max = 45
+# rotate_max = 90
 # zoom_range=[0.8, 1.2]
 zoom_range=[0.9, 1.1]
 
@@ -120,13 +136,10 @@ def augment_zoom(img):
 if is_augment:
     if augment_type is '0':
         datagen_args = dict(
-            # rotation_range=45,
-            rotation_range=90,
-            width_shift_range=0.2,
-            height_shift_range=0.2,
+            rotation_range=rotate_max,
+            width_shift_range=shift_max,
+            height_shift_range=shift_max,
             shear_range=0,
-            # zoom_range=[0.8, 1.2],
-            # zoom_range=[0.9, 1],
             # zoom_range=[0.9, 1.1],
             fill_mode='constant',
             cval=0,
@@ -136,15 +149,15 @@ if is_augment:
         )
     elif augment_type is '1': # shift
         datagen_args = dict(
-            width_shift_range=0.2,
-            height_shift_range=0.2,
+            width_shift_range=shift_max,
+            height_shift_range=shift_max,
             shear_range=0,
             fill_mode='constant',
             cval=0,
         )
     elif augment_type is '2': # rotate
         datagen_args = dict(
-            rotation_range=45,
+            rotation_range=rotate_max,
             shear_range=0,
             fill_mode='constant',
             cval=0,
@@ -158,13 +171,21 @@ if is_augment:
         )
     elif augment_type is '4': # no-zoom
         datagen_args = dict(
-            # rotation_range=45,
-            rotation_range=90,
-            width_shift_range=0.2,
-            height_shift_range=0.2,
+            rotation_range=rotate_max,
+            width_shift_range=shift_max,
+            height_shift_range=shift_max,
             shear_range=0,
             fill_mode='constant',
             cval=0,
+        )
+    elif augment_type is '5': # no-rotate
+        datagen_args = dict(
+            width_shift_range=shift_max,
+            height_shift_range=shift_max,
+            shear_range=0,
+            fill_mode='constant',
+            cval=0,
+            preprocessing_function=augment_zoom
         )
 
     x_datagen = ImageDataGenerator(**datagen_args)
@@ -399,8 +420,8 @@ def main():
     # train
     model_save_cb = ModelCheckpoint(model_dir + '/model-best.hdf5',
                                     # model_dir + '/model-{epoch:03d}.hdf5',
-                                    monitor='val_loss',
-                                    verbose=1,
+                                    monitor=monitor_loss,
+                                    verbose=verbose,
                                     save_best_only=True,
                                     save_weights_only=True,
                                     mode='min',
@@ -428,7 +449,7 @@ def main():
             x_train,
             y_train,
             epochs=epoch_num,
-            batch_size=64,
+            batch_size=train_batch_size,
             initial_epoch=initial_epoch,
             shuffle=True,
             validation_split=val_rate,

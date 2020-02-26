@@ -6,10 +6,12 @@ root_dir = '../output/output_archive/'
 data_dir = root_dir + '200124/'
 
 data_dir = '../output/'
+# data_dir = '../output/archive/200203/'
 
 output_dir = 'output_'
 # pred_dir = '/predict_200'
 pred_dir = '/predict_500'
+# pred_dir = '/predict_500_fake'
 # pred_dir = '/predict_1000'
 save_dir = data_dir
 
@@ -75,53 +77,57 @@ def gen_graph(label, depth, list_pred, list_compares, comp_name, type_name='test
     plt.savefig(save_dir + 'errs_cmp{}.pdf'.format(comp_name))
 
 def compare_error(dir_name, error='RMSE'):
-    # for type_name in ['train', 'test']:
-    for type_name in ['test']:
+    for type_name in ['train', 'test']:
+    # for type_name in ['test']:
         label, depth = get_index_depth(dir_name, type_name=type_name)
         pred = get_predict(dir_name, type_name=type_name)
-        gen_graph(label, depth, [pred], ['predict'], comp_name='', type_name=type_name, save_dir=dir_name)
+        # gen_graph(label, depth, [pred], ['predict'], comp_name='', type_name=type_name, save_dir=dir_name)
+        gen_graph(label, depth, [pred], ['predict'], comp_name=type_name, type_name=type_name, save_dir=dir_name)
 
 def compare_errors(list_compares, comp_name='', data_dir=data_dir, output_dir=output_dir, pred_dir=pred_dir):
     list_dir = get_list_dir(list_compares, data_dir, output_dir, pred_dir)
     label, depth = get_index_depth(list_dir[0])
     list_pred = get_list_pred(list_dir)
+    # comp_name += '_fake'
     gen_graph(label, depth, list_pred, list_compares, comp_name, save_dir=save_dir)
 
 
 def main():
-    # list_compares = ['unet_drop=0', 'unet_drop=5', 'unet_drop=10', 'unet_drop=20']
-    list_compares = ['unet_no-aug', 'unet_drop-5', 'unet_drop-10', 'unet_drop-20']
-    compare_errors(list_compares, 'unet_drops')
-    # list_compares = ['resnet_drop=0', 'resnet_drop=5', 'resnet_drop=10', 'resnet_drop=20']
-    list_compares = ['resnet_no-aug', 'resnet_drop-5', 'resnet_drop-10', 'resnet_drop-20']
-    compare_errors(list_compares, 'resnet_drops')
-    # list_compares = ['dense-resnet_drop=0', 'dense-resnet_drop=5', 'dense-resnet_drop=10', 'dense-resnet_drop=20']
-    list_compares = ['dense-resnet_no-aug', 'dense-resnet_drop-5', 'dense-resnet_drop-10', 'dense-resnet_drop-20']
-    compare_errors(list_compares, 'dense-resnet_drops')
+    # # # list_compares = ['unet_drop=0', 'unet_drop=5', 'unet_drop=10', 'unet_drop=20']
+    # list_compares = ['unet_no-aug', 'unet_drop-5', 'unet_drop-10', 'unet_drop-20']
+    # compare_errors(list_compares, 'unet_drops')
+    # # list_compares = ['resnet_drop=0', 'resnet_drop=5', 'resnet_drop=10', 'resnet_drop=20']
+    # list_compares = ['resnet_no-aug', 'resnet_drop-5', 'resnet_drop-10', 'resnet_drop-20']
+    # compare_errors(list_compares, 'resnet_drops')
+    # # list_compares = ['dense-resnet_drop=0', 'dense-resnet_drop=5', 'dense-resnet_drop=10', 'dense-resnet_drop=20']
+    # list_compares = ['dense-resnet_no-aug', 'dense-resnet_drop-5', 'dense-resnet_drop-10', 'dense-resnet_drop-20']
+    # compare_errors(list_compares, 'dense-resnet_drops')
 
-    list_compares = ['unet_no-aug', 'unet_aug-no-zoom', 'unet_aug']
-    compare_errors(list_compares, 'unet_augs')
-    list_compares = ['resnet_no-aug', 'resnet_aug-no-zoom', 'resnet_aug']
-    compare_errors(list_compares, 'resnet_augs')
-    list_compares = ['dense-resnet_no-aug', 'dense-resnet_aug-no-zoom', 'dense-resnet_aug']
-    compare_errors(list_compares, 'dense-resnet_augs')
+    # list_compares = ['unet_no-aug', 'unet_aug-no-zoom', 'unet_aug']
+    # compare_errors(list_compares, 'unet_augs')
+    # list_compares = ['resnet_no-aug', 'resnet_aug-no-zoom', 'resnet_aug']
+    # compare_errors(list_compares, 'resnet_augs')
+    # list_compares = ['dense-resnet_no-aug', 'dense-resnet_aug-no-zoom', 'dense-resnet_aug']
+    # compare_errors(list_compares, 'dense-resnet_augs')
 
     # list_compares = ['unet_drop=0', 'resnet_drop=0', 'dense-resnet_drop=0']
-    list_compares = ['unet_drop-5', 'resnet_drop-5', 'dense-resnet_drop-5']
-    compare_errors(list_compares, 'nets_drop-5')
-    list_compares = ['unet_drop-10', 'resnet_drop-10', 'dense-resnet_drop-10']
-    compare_errors(list_compares, 'nets_drop-10')
-    list_compares = ['unet_drop-20', 'resnet_drop-20', 'dense-resnet_drop-20']
-    compare_errors(list_compares, 'nets_drop-20')
+    # list_compares = ['unet_drop-5', 'resnet_drop-5', 'dense-resnet_drop-5']
+    # compare_errors(list_compares, 'nets_drop-5')
+    # list_compares = ['unet_drop-10', 'resnet_drop-10', 'dense-resnet_drop-10']
+    # compare_errors(list_compares, 'nets_drop-10')
+    # list_compares = ['unet_drop-20', 'resnet_drop-20', 'dense-resnet_drop-20']
+    # compare_errors(list_compares, 'nets_drop-20')
 
-    list_compares = ['unet_no-aug', 'resnet_no-aug', 'dense-resnet_no-aug']
-    compare_errors(list_compares, 'nets_no-aug')
-    list_compares = ['unet_aug-no-zoom', 'resnet_aug-no-zoom', 'dense-resnet_aug-no-zoom']
-    compare_errors(list_compares, 'nets_aug-no-zoom')
-    list_compares = ['unet_aug', 'resnet_aug', 'dense-resnet_aug']
-    compare_errors(list_compares, 'nets_aug')
+    # list_compares = ['unet_no-aug', 'resnet_no-aug', 'dense-resnet_no-aug']
+    # compare_errors(list_compares, 'nets_no-aug')
+    # list_compares = ['unet_aug-no-zoom', 'resnet_aug-no-zoom', 'dense-resnet_aug-no-zoom']
+    # compare_errors(list_compares, 'nets_aug-no-zoom')
+    # list_compares = ['unet_aug', 'resnet_aug', 'dense-resnet_aug']
+    # compare_errors(list_compares, 'nets_aug')
 
-    # compare_errors(list_compares, 'dense-resnet_augs')
+
+    list_compares = ['resnet_drop-5_no-aug', 'resnet_drop-5_aug-no-zoom', 'resnet_drop-5_aug']
+    compare_errors(list_compares, 'resnet_drop-5_augs')
 
 
     # dir1 = root_dir + '200122/output_aug/predict_1000/'
