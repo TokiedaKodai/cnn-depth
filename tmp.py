@@ -4,15 +4,117 @@ import cupy as cp
 import cv2
 from scipy.spatial.distance import euclidean, cityblock
 import time
+from tqdm import tqdm
 
-DIR = 'C:/Users/b19.tokieda/Desktop/cnn-depth_remote/local-dir/'
-src_dir = DIR + 'input_data_1217/'
+# DIR = 'C:/Users/b19.tokieda/Desktop/cnn-depth_root/'
+# src_dir_1 = DIR + 'data/input_200201/'
+# src_dir_2 = DIR + 'data/input_200312/'
 
-frame = cv2.imread(src_dir + 'frame/frame004.png')
-cv2.imwrite(src_dir + 'frame/frame004.png', frame[:, :1200])
+src_dir = '../data/input_200317/'
 
-shading = cv2.imread(src_dir + 'shading/shading004.bmp')
-cv2.imwrite(src_dir + 'shading/shading004.bmp', shading[:, :1200])
+src_rec_dir = src_dir + '/rec_ajusted'
+src_frame_dir = src_dir + '/frame'
+src_gt_dir = src_dir + '/gt'
+src_shading_dir = src_dir + '/shading'
+
+src_dir_3 = '../data/input_200318/'
+
+src_rec_dir_3 = src_dir_3 + '/rec_ajusted'
+src_frame_dir_3 = src_dir_3 + '/frame'
+src_gt_dir_3 = src_dir_3 + '/gt'
+src_shading_dir_3 = src_dir_3 + '/shading'
+
+for data_idx in tqdm(range(8)):
+    src_bgra = src_frame_dir + '/frame{:03d}.png'.format(data_idx)
+    src_depth_gap = src_rec_dir + '/depth{:03d}.bmp'.format(data_idx)
+    src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(data_idx)
+    src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(data_idx)
+
+    frame = cv2.imread(src_bgra, -1)
+    gap = cv2.imread(src_depth_gap, -1)
+    gt = cv2.imread(src_depth_gt, -1)
+    shading = cv2.imread(src_shading, -1)
+
+    data_idx += 48
+
+    src_bgra_3 = src_frame_dir_3 + '/frame{:03d}.png'.format(data_idx)
+    src_depth_gap_3 = src_rec_dir_3 + '/depth{:03d}.bmp'.format(data_idx)
+    src_depth_gt_3 = src_gt_dir_3 + '/gt{:03d}.bmp'.format(data_idx)
+    src_shading_3 = src_shading_dir_3 + '/shading{:03d}.bmp'.format(data_idx)
+
+    cv2.imwrite(src_bgra_3, frame)
+    cv2.imwrite(src_depth_gap_3, gap)
+    cv2.imwrite(src_depth_gt_3, gt)
+    cv2.imwrite(src_shading_3, shading)
+
+
+src_dir = '../data/input_200201-0312/'
+
+src_rec_dir = src_dir + '/rec_ajusted'
+src_frame_dir = src_dir + '/frame'
+src_gt_dir = src_dir + '/gt'
+src_shading_dir = src_dir + '/shading'
+
+for data_idx in tqdm(range(48, 56)):
+    src_bgra = src_frame_dir + '/frame{:03d}.png'.format(data_idx)
+    src_depth_gap = src_rec_dir + '/depth{:03d}.bmp'.format(data_idx)
+    src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(data_idx)
+    src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(data_idx)
+
+    frame = cv2.imread(src_bgra, -1)
+    gap = cv2.imread(src_depth_gap, -1)
+    gt = cv2.imread(src_depth_gt, -1)
+    shading = cv2.imread(src_shading, -1)
+
+    data_idx += 8
+
+    src_bgra_3 = src_frame_dir_3 + '/frame{:03d}.png'.format(data_idx)
+    src_depth_gap_3 = src_rec_dir_3 + '/depth{:03d}.bmp'.format(data_idx)
+    src_depth_gt_3 = src_gt_dir_3 + '/gt{:03d}.bmp'.format(data_idx)
+    src_shading_3 = src_shading_dir_3 + '/shading{:03d}.bmp'.format(data_idx)
+
+    cv2.imwrite(src_bgra_3, frame)
+    cv2.imwrite(src_depth_gap_3, gap)
+    cv2.imwrite(src_depth_gt_3, gt)
+    cv2.imwrite(src_shading_3, shading)
+
+
+src_dir = '../data/input_200317/'
+
+src_rec_dir = src_dir + '/rec_ajusted'
+src_frame_dir = src_dir + '/frame'
+src_gt_dir = src_dir + '/gt'
+src_shading_dir = src_dir + '/shading'
+
+for data_idx in tqdm(range(8, 17)):
+    src_bgra = src_frame_dir + '/frame{:03d}.png'.format(data_idx)
+    src_depth_gap = src_rec_dir + '/depth{:03d}.bmp'.format(data_idx)
+    src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(data_idx)
+    src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(data_idx)
+
+    frame = cv2.imread(src_bgra, -1)
+    gap = cv2.imread(src_depth_gap, -1)
+    gt = cv2.imread(src_depth_gt, -1)
+    shading = cv2.imread(src_shading, -1)
+
+    data_idx += 56
+
+    src_bgra_3 = src_frame_dir_3 + '/frame{:03d}.png'.format(data_idx)
+    src_depth_gap_3 = src_rec_dir_3 + '/depth{:03d}.bmp'.format(data_idx)
+    src_depth_gt_3 = src_gt_dir_3 + '/gt{:03d}.bmp'.format(data_idx)
+    src_shading_3 = src_shading_dir_3 + '/shading{:03d}.bmp'.format(data_idx)
+
+    cv2.imwrite(src_bgra_3, frame)
+    cv2.imwrite(src_depth_gap_3, gap)
+    cv2.imwrite(src_depth_gt_3, gt)
+    cv2.imwrite(src_shading_3, shading)
+
+
+# frame = cv2.imread(src_dir + 'frame/frame004.png')
+# cv2.imwrite(src_dir + 'frame/frame004.png', frame[:, :1200])
+
+# shading = cv2.imread(src_dir + 'shading/shading004.bmp')
+# cv2.imwrite(src_dir + 'shading/shading004.bmp', shading[:, :1200])
 
 # argv = sys.argv
 

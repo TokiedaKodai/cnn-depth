@@ -5,9 +5,9 @@ import time
 import common_tools as tool
 import depth_tools
 
-DIR = '../data/input_200201/'
+DIR = '../data/input_200317/'
 
-idx = range(60)
+idx = range(17)
 
 # input_200117
 # cam_params = {
@@ -17,6 +17,7 @@ idx = range(60)
 #     'center_x': 826.396,
 #     'center_y': 578.887
 # }
+
 # input_200201
 cam_params = {
     'focal_length': 0.037306625,

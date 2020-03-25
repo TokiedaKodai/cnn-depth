@@ -2,10 +2,11 @@ import depth_tools
 import cv2
 import numpy as np
 from tqdm import tqdm
+import os
 
 DIR = '../'
-DIR_REC = 'C:/Users/b19.tokieda/Desktop/data_200201/reconst/'
-src_dir = DIR + 'data/input_200201'
+DIR_REC = 'C:/Users/b19.tokieda/Desktop/data_200317/reconst/'
+src_dir = DIR + 'data/input_200317'
 src_rec_dir = src_dir + '/rec'
 src_gt_dir = src_dir + '/gt'
 
@@ -29,21 +30,47 @@ cam_params = {
 depth_threshold = 0.2
 difference_threshold = 0.005
 
-# data_idx_range = range(40)
-data_idx_range = range(40, 60)
+data_idx_range = range(17)
 
 list_thre = [10, 15]
 list_bias = [0, 5, -5]
+# list_bias = [0, 5]
 
 for idx in tqdm(data_idx_range):
-    if idx < 40:
-        datatype = 'b'
-        distance = int(idx / 8) * 10 + 90
-        rec_idx = idx % 8 + 1
-    else:
-        datatype = 'f'
-        distance = int((idx - 40) / 4) * 10 + 90
-        rec_idx = (idx - 40) % 4 + 1
+    # if idx < 40:
+    #     datatype = 'b'
+    #     distance = int(idx / 8) * 10 + 90
+    #     rec_idx = idx % 8 + 1
+    # else:
+    #     datatype = 'f'
+    #     distance = int((idx - 40) / 4) * 10 + 90
+    #     rec_idx = (idx - 40) % 4 + 1
+
+    if idx < 4:
+        datatype = 'mid'
+        distance = 90
+        rec_idx = idx + 1
+    elif idx < 8:
+        datatype = 'mid'
+        distance = 100
+        rec_idx = idx - 3
+    elif idx < 12:
+        datatype = 'mid'
+        distance = 130
+        rec_idx = idx - 7
+    elif idx < 17:
+        datatype = 'spo'
+        rec_idx = 1
+        if idx == 12:
+            distance = 90
+        elif idx == 13:
+            distance = 100
+        elif idx == 14:
+            distance = 110
+        elif idx == 15:
+            distance = 120
+        elif idx == 16:
+            distance = 130
 
     src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(idx)
     img_gt = cv2.imread(src_depth_gt, -1)
@@ -56,8 +83,9 @@ for idx in tqdm(data_idx_range):
 
     for thre in list_thre:
         for bias in list_bias:
-            in_rec_dir = DIR_REC + 'output_{}{}-{}_{}_{}/'.format(datatype, distance, rec_idx, thre, bias)
+            in_rec_dir = DIR_REC + 'output_{}-{}-{}_{}-{}/'.format(datatype, distance, rec_idx, thre, bias)
             out_rec_dir = src_dir + '/rec_original/rec_{}_{}/'.format(thre, bias)
+            os.makedirs(out_rec_dir, exist_ok=True)
             
             img_rec = cv2.imread(in_rec_dir + 'check13-depthimage.png', -1)
             cv2.imwrite(out_rec_dir + 'depth{:03d}.png'.format(idx), img_rec)

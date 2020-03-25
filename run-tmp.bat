@@ -11,14 +11,8 @@ REM python predict.py unet_aug-no-zoom 500 0
 
 
 
-REM python train.py resnet_no-aug 0 500 0 0 0 1
-REM python predict.py resnet_no-aug 500 1
-
-REM python train.py resnet_aug 0 500 1 0 0 1
-REM python predict.py resnet_aug 500 1
-
-REM python train.py resnet_aug-no-zoom 0 500 1 4 0 1
-REM python predict.py resnet_aug-no-zoom 500 1
+REM python train.py resnet_drop-5_aug-no-zoom 0 500 5 5 1
+REM python predict.py resnet_drop-5_aug-no-zoom 500 1
 
 
 
@@ -63,3 +57,46 @@ python predict.py resnet_drop-20 500 1
 
 python train.py dense-resnet_drop-20 0 500 0 0 20 2
 python predict.py dense-resnet_drop-20 500 2
+
+
+
+
+REM python train.py unet_drop-5_no-aug 0 500 0 5 0
+REM python predict.py unet_drop-5_no-aug 500 0
+
+REM python train.py unet_drop-5_aug 0 500 1 5 0
+REM python predict.py unet_drop-5_aug 500 0
+
+REM python train.py unet_drop-5_aug-no-scale 0 500 7 5 0
+REM python predict.py unet_drop-5_aug-no-scale 500 0
+
+
+REM python train.py unet_drop-10_no-aug 0 500 0 10 0
+REM python predict.py unet_drop-10_no-aug 500 0
+
+REM python train.py unet_drop-10_aug 0 500 1 10 0
+REM python predict.py unet_drop-10_aug 500 0
+
+REM python train.py unet_drop-10_aug-no-scale 0 500 7 10 0
+REM python predict.py unet_drop-10_aug-no-scale 500 0
+
+
+REM python train.py unet_drop-20_no-aug 0 500 0 20 0
+REM python predict.py unet_drop-20_no-aug 500 0
+
+REM python train.py unet_drop-20_aug 0 500 1 20 0
+REM python predict.py unet_drop-20_aug 500 0
+
+REM python train.py unet_drop-20_aug-no-scale 0 500 7 20 0
+REM python predict.py unet_drop-20_aug-no-scale 500 0
+
+
+
+REM python train.py dense-resnet_drop-5_no-aug 0 500 0 5 2
+REM python predict.py dense-resnet_drop-5_no-aug 500 2
+
+REM python train.py dense-resnet_drop-5_aug 0 500 1 5 2
+REM python predict.py dense-resnet_drop-5_aug 500 2
+
+REM python train.py dense-resnet_drop-5_aug-no-scale 0 500 7 5 2
+REM python predict.py dense-resnet_drop-5_aug-no-scale 500 2

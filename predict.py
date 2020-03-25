@@ -26,8 +26,8 @@ ARGV
 argv = sys.argv
 _, out_dir, epoch_num, net_type = argv # output dir, epoch
 
-out_dir = '../output/output_' + out_dir
-# out_dir = '../output/archive/200203/output_' + out_dir
+# out_dir = '../output/output_' + out_dir
+out_dir = '../output/archive/200318/output_' + out_dir
 
 epoch_num = int(epoch_num)
 
@@ -36,10 +36,11 @@ is_shading_norm = True
 
 # parameters
 depth_threshold = 0.2
-# difference_threshold = 0.005
-difference_threshold = 0.003
+difference_threshold = 0.005
+# difference_threshold = 0.003
 patch_remove = 0.5
 difference_scaling = 100
+# difference_scaling = 10
 
 # input
 is_input_depth = True
@@ -54,10 +55,15 @@ select_range = epoch_num
 
 #InputData
 src_dir = '../data/input_200201'
+src_dir = '../data/input_200302'
+src_dir = '../data/input_200201-0312/'
+src_dir = '../data/input_200318'
 
 # save predict depth PLY file
 is_save_ply = True
-is_save_ply = False
+# is_save_ply = False
+
+is_masked_ply = True
 
 # predict normalization
 # is_predict_norm = True 
@@ -65,7 +71,7 @@ is_predict_norm = False
 # is_predict_norm = int(is_predict_norm)
 
 # select from val loss
-# is_select_val = True
+is_select_val = True
 is_select_val = False
 
 # if is_predict_norm:
@@ -81,40 +87,53 @@ is_select_val = False
 #         predict_dir = out_dir + '/predict_{}_loss'.format(epoch_num)
 
 predict_dir = out_dir + '/predict_{}'.format(epoch_num)
+predict_dir = out_dir + '/predict_{}_test'.format(epoch_num)
 
-data_num = 40
-data_num = 60
+# data_num = 6
+# data_num = 40
+# data_num = 60
+data_num = 56
+data_num = 68
 # if epoch_num == 1000:
     # is_save_ply = True
     # data_num = 60
 
-# data_idx_range = list(range(data_num))
+data_idx_range = list(range(data_num))
 # data_idx_range.extend(list(range(48, 52)))
 # data_idx_range = range(40, 60)
-data_idx_range = list()
-for i in range(5):
-    data_idx_range.extend([0+8*i, 1+8*i, 3+8*i, 6+8*i])
+# data_idx_range = list()
+# for i in range(5):
+#     data_idx_range.extend([0+8*i, 1+8*i, 3+8*i, 6+8*i])
 
 '''
 Test Data
-110cm : 16 - 23
+ori 110cm : 16 - 23
+small 100cm : 44 - 47
+mid 110cm : 56 - 59
 '''
 # test data
-# test_range = list(range(16, 24))
+# test_range = list(range(40))
+test_range = list(range(16, 24))
+test_range.extend(list(range(44, 48)))
+# test_range.extend(list(range(48, 56)))
+test_range.extend(list(range(56, 60)))
+
 # test_range.extend(list(range(48, 52)))
-test_range = list()
-for i in range(5):
-    test_range.extend([3+8*i, 6+8*i])
+# test_range = list()
+# for i in range(5):
+#     test_range.extend([3+8*i, 6+8*i])
 
 # train data
 '''no-fake data'''
 # train_range = list(range(16))
 # train_range.extend(list(range(24, 40)))
+# train_range.extend(list(range(40, 48)))
+# train_range.extend(list(range(56, 58)))
 '''fake data'''
 # train_range.extend(list(range(40, 48)))
 # train_range.extend(list(range(52, 60)))
 '''no-rotate data'''
-train_range = [0, 1, 8, 9, 16, 17, 24, 25, 32, 33]
+# train_range = [0, 1, 8, 9, 16, 17, 24, 25, 32, 33]
 
 # train_range = list()
 # for i in range(5):
@@ -234,7 +253,11 @@ def main():
         depth_gt = depth_tools.unpack_bmp_bgra_to_float(depth_img_gt)
         depth_gt = depth_gt[:, :1200]  # clipping
 
-        shading = cv2.imread(src_shading, -1)
+        shading_bgr = cv2.imread(src_shading, -1)
+        # shading = cv2.imread(src_shading, 0) # GrayScale
+        shading = np.zeros_like(shading_bgr)
+        shading[:, :, 0] = 0.299 * shading_bgr[:, :, 2] + 0.587 * shading_bgr[:, :, 1] + 0.114 * shading_bgr[:, :, 0]
+
         if is_shading_norm:
             shading = shading / np.max(shading)
         else:
@@ -380,16 +403,21 @@ def main():
         depth_loss = depth_MAE
 
         # save predicted depth
-        # predict_bmp = depth_tools.pack_float_to_bmp_bgra(predict_depth)
-        # cv2.imwrite(predict_dir + '/predict_depth-{:05d}.bmp'.format(test_idx),
-        #             predict_bmp)
+        if test_idx in save_ply_range:
+            predict_bmp = depth_tools.pack_float_to_bmp_bgra(predict_depth)
+            cv2.imwrite(predict_dir + '/predict_depth-{:03d}.bmp'.format(test_idx),
+                        predict_bmp)
 
         # save ply
         if is_save_ply:
             if test_idx in save_ply_range:
-                xyz_predict_masked = depth_tools.convert_depth_to_coords(predict_masked, cam_params)
-                depth_tools.dump_ply(predict_dir + '/predict_masked-%03d.ply'%test_idx, xyz_predict_masked.reshape(-1, 3).tolist())
-
+                if is_masked_ply:
+                    xyz_predict_masked = depth_tools.convert_depth_to_coords(predict_masked, cam_params)
+                    depth_tools.dump_ply(predict_dir + '/predict_masked-%03d.ply'%test_idx, xyz_predict_masked.reshape(-1, 3).tolist())
+                else:
+                    xyz_predict = depth_tools.convert_depth_to_coords(predict_depth, cam_params)
+                    depth_tools.dump_ply(predict_dir + '/predict-%03d.ply'%test_idx, xyz_predict.reshape(-1, 3).tolist())
+                
         # save fig
         if test_idx in test_range:
         # if test_idx not in train_range:
@@ -464,7 +492,8 @@ def main():
             ax_enh3.imshow(predict_masked, cmap='jet', vmin=vmin_s, vmax=vmax_s)
 
             # misc
-            ax_misc0.imshow(shading[:, :, ::-1])
+            ax_misc0.imshow(shading_bgr[:, :, ::-1])
+            # ax_misc0.imshow(shading[:, :, ::-1])
             # ax_misc1.imshow(train_segment, cmap='rainbow', vmin=0, vmax=2)
 
             # error

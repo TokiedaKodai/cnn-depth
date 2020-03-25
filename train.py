@@ -25,12 +25,15 @@ ARGV
 4-6: parameter
 '''
 argv = sys.argv
-_, out_local, is_model_exist, epoch_num, augment_rate, augment_type, dropout, net_type = argv
+_, out_local, is_model_exist, epoch_num, augment_type, dropout, net_type = argv
 
 os.chdir(os.path.dirname(os.path.abspath(__file__))) #set currenct dir
 
 #InputData
-src_dir = '../data/input_200201'
+# src_dir = '../data/input_200201'
+# src_dir = '../data/input_200302'
+# src_dir = '../data/input_200201-0312/'
+src_dir = '../data/input_200318'
 
 #RemoteOutput
 out_dir = 'output'
@@ -48,16 +51,25 @@ if is_local_train:
 
 '''
 Test Data
-110cm : 16 - 23
+ori 110cm : 16 - 23
+small 100cm : 44 - 47
+mid 110cm : 56 - 59
 '''
 '''data index'''
-# data_idx_range = list(range(16))
-# data_idx_range.extend(list(range(24, 40)))
+# data_idx_range = range(6)
+
+data_idx_range = list(range(16)) # 0 - 15
+data_idx_range.extend(list(range(24, 40))) # 24 - 43
+data_idx_range.extend(list(range(40, 44)))
+# data_idx_range.extend(list(range(44, 48)))
+data_idx_range.extend(list(range(48, 56))) # 48 - 55
+data_idx_range.extend(list(range(60, 68))) # 60 -67
+# data_idx_range.extend(list(range(68, 73)))
 '''fake data'''
 # data_idx_range.extend(list(range(40, 48)))
 # data_idx_range.extend(list(range(52, 60)))
 '''no-rotate data'''
-data_idx_range = [0, 1, 8, 9, 16, 17, 24, 25, 32, 33]
+# data_idx_range = [0, 1, 8, 9, 16, 17, 24, 25, 32, 33]
 
 # data_idx_range = list()
 # for i in range(5):
@@ -65,8 +77,8 @@ data_idx_range = [0, 1, 8, 9, 16, 17, 24, 25, 32, 33]
 
 # parameters
 depth_threshold = 0.2
-# difference_threshold = 0.005
-difference_threshold = 0.003
+difference_threshold = 0.005
+# difference_threshold = 0.003
 patch_remove = 0.5
 # dropout_rate = 0.12
 dropout_rate = int(dropout) / 100
@@ -75,7 +87,7 @@ dropout_rate = int(dropout) / 100
 save_period = 10
 
 # monitor train loss or val loss
-# monitor_loss = 'val_loss'
+monitor_loss = 'val_loss'
 monitor_loss = 'loss'
 
 # input
@@ -91,27 +103,31 @@ batch_tl = (0, 0)  # top, left
 train_batch_size = 64
 # train_batch_size = 128
 
-val_rate = 0.1
-# val_rate = 0.3
+# val_rate = 0.1
+val_rate = 0.3
 
 # progress bar
 verbose = 1
-verbose = 0
+# verbose = 0
+
+difference_scaling = 100
 
 # augmentation
 is_augment = True
-# is_augment = False
-
-shift_max = 0.1
-# shift_max = 0.2
-rotate_max = 45
-# rotate_max = 90
-# zoom_range=[0.8, 1.2]
-zoom_range=[0.9, 1.1]
-
-augment_rate = int(augment_rate)
-if augment_rate == 0:
+if augment_type == '0':
     is_augment = False
+augment_rate = 1
+
+# shift_max = 0.1
+# shift_max = 0.2
+shift_max = 0.5
+# rotate_max = 45
+rotate_max = 90
+# zoom_range=[0.9, 1.1]
+# zoom_range=[0.8, 1.2]
+# zoom_range=[0.5, 5.0]
+zoom_range=[0.5, 1.5]
+# zoom_range=[0.1, 10.0]
 
 def augment_zoom(img):
     h, w, s = img.shape
@@ -134,7 +150,7 @@ def augment_zoom(img):
     return new_img
 
 if is_augment:
-    if augment_type is '0':
+    if augment_type is '1':
         datagen_args = dict(
             rotation_range=rotate_max,
             width_shift_range=shift_max,
@@ -147,7 +163,7 @@ if is_augment:
             # vertical_flip=True
             preprocessing_function=augment_zoom
         )
-    elif augment_type is '1': # shift
+    elif augment_type is '2': # shift
         datagen_args = dict(
             width_shift_range=shift_max,
             height_shift_range=shift_max,
@@ -155,21 +171,21 @@ if is_augment:
             fill_mode='constant',
             cval=0,
         )
-    elif augment_type is '2': # rotate
+    elif augment_type is '3': # rotate
         datagen_args = dict(
             rotation_range=rotate_max,
             shear_range=0,
             fill_mode='constant',
             cval=0,
         )
-    elif augment_type is '3': # zoom
+    elif augment_type is '4': # zoom
         datagen_args = dict(
             shear_range=0,
             fill_mode='constant',
             cval=0,
             preprocessing_function=augment_zoom
         )
-    elif augment_type is '4': # no-zoom
+    elif augment_type is '5': # no-zoom
         datagen_args = dict(
             rotation_range=rotate_max,
             width_shift_range=shift_max,
@@ -178,7 +194,7 @@ if is_augment:
             fill_mode='constant',
             cval=0,
         )
-    elif augment_type is '5': # no-rotate
+    elif augment_type is '6': # no-rotate
         datagen_args = dict(
             width_shift_range=shift_max,
             height_shift_range=shift_max,
@@ -186,6 +202,16 @@ if is_augment:
             fill_mode='constant',
             cval=0,
             preprocessing_function=augment_zoom
+        )
+    elif augment_type is '7': # no-scale
+        datagen_args = dict(
+            rotation_range=rotate_max,
+            width_shift_range=shift_max,
+            height_shift_range=shift_max,
+            shear_range=0,
+            zoom_range=zoom_range,
+            fill_mode='constant',
+            cval=0
         )
 
     x_datagen = ImageDataGenerator(**datagen_args)
@@ -203,7 +229,7 @@ if is_model_exist is '0':
     resume_from = None  # start new without resume
 else:
     # resume_from = 'auto'  # resume from latest model file
-
+ 
     df_log = pd.read_csv(out_dir + '/training.log')
     pre_epoch = int(df_log.tail(1).index.values) + 1
     resume_from = pre_epoch 
@@ -259,7 +285,11 @@ def prepare_data(data_idx_range):
         depth_gt = depth_tools.unpack_bmp_bgra_to_float(depth_img_gt)
         img_shape = bgr.shape[:2]
 
-        shading = cv2.imread(src_shading, -1)
+        shading_bgr = cv2.imread(src_shading, -1)
+        # shading = cv2.imread(src_shading, 0) # GrayScale
+        shading = np.zeros_like(shading_bgr)
+        shading[:, :, 0] = 0.299 * shading_bgr[:, :, 2] + 0.587 * shading_bgr[:, :, 1] + 0.114 * shading_bgr[:, :, 0]
+
         if is_shading_norm:
             shading = shading / np.max(shading)
         else:
@@ -375,7 +405,8 @@ def main():
             ch_num,
             depth_threshold=depth_thre,
             difference_threshold=difference_threshold,
-            drop_rate=dropout_rate
+            drop_rate=dropout_rate,
+            scaling=difference_scaling
             )
     elif net_type is '2':
         model = network.build_dense_resnet_model(

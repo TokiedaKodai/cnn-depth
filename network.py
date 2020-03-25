@@ -191,7 +191,12 @@ def build_resnet_model(batch_shape,
         return x
     
     input_batch = Input(shape=(*batch_shape, ch_num))
-    e0 = Conv2D(8, (1, 1), padding='same')(input_batch)
+
+    e0 = AveragePooling2D((2, 2))(input_batch)
+    e0 = UpSampling2D((2, 2))(e0)
+    e0 = Conv2D(8, (1, 1), padding='same')(e0)
+
+    # e0 = Conv2D(8, (1, 1), padding='same')(input_batch)
     e0 = Activation('tanh')(e0)
 
     e0 = encode_block(e0, 16)
