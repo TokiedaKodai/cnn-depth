@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-import cupy as cp
+# import cupy as cp
 
 def unpack_png_to_float(png):
     depthImageUnit = 0.00001

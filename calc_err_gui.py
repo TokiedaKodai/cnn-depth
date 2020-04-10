@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+import copy
 
 import depth_tools
 
@@ -14,11 +15,14 @@ argv = sys.argv
 _, out_dir, epoch_num, idx = argv
 idx = int(idx)
 
-# out_dir = '../output/output_' + out_dir
-out_dir = '../output/archive/200318/output_' + out_dir
+out_dir = '../output/output_' + out_dir
+# out_dir = '../output/archive/200318/output_' + out_dir
 
 predict_dir = out_dir + '/predict_{}'.format(epoch_num)
 predict_dir = out_dir + '/predict_{}_test'.format(epoch_num)
+
+depth_threshold = 0.2
+difference_threshold = 0.005
 
 img_h, img_w = 1200, 1200
 space_top, space_center = 100, 20
@@ -36,6 +40,9 @@ select_L = False
 
 color_rectangle = (0, 255, 0)
 color_eraser = (0, 0, 255)
+
+mask = np.zeros((img_h, img_w), np.uint8)
+mask_eraser = np.zeros((img_h, img_w), np.uint8)
 
 def circle(img, x, y):
     cv2.circle(img, (x,y), 1, (0,0,255), -1)
@@ -179,20 +186,20 @@ err_sqr_rec = np.square(depth_gt - depth_rec)
 err_sqr_pred = np.square(depth_gt - depth_pred)
 
 window = np.zeros((window_h, window_w))
-window[L_h_start:L_h_end, L_w_start:L_w_end] = err_abs_rec
-window[R_h_start:R_h_end, R_w_start:R_w_end] = err_abs_pred
+window[L_h_start:L_h_end, L_w_start:L_w_end] = copy.deepcopy(err_abs_rec)
+window[R_h_start:R_h_end, R_w_start:R_w_end] = copy.deepcopy(err_abs_pred)
 
 cv2.namedWindow('window', cv2.WINDOW_NORMAL)
 cv2.setMouseCallback('window', draw_on_window)
 
-vmin_e, vmax_e = 0, 0.005
+vmin_e, vmax_e = 0, difference_threshold
 
 window = np.where(window > vmax_e, 2**16 - 1, (window / vmax_e)*(2**16 - 1))
 window = (window / 256).astype(np.uint8)
 window = cv2.applyColorMap(window, cv2.COLORMAP_JET)
 
-mask = np.zeros((img_h, img_w), np.uint8)
-mask_eraser = np.zeros((img_h, img_w), np.uint8)
+# mask = np.zeros((img_h, img_w), np.uint8)
+# mask_eraser = np.zeros((img_h, img_w), np.uint8)
 
 original_window = window
 
@@ -219,24 +226,60 @@ while(1):
         break
 cv2.destroyAllWindows()
 
-mask = np.where(mask_eraser == 1, 0, mask)
+mask = np.where(mask_eraser == 1, 0.0, mask * 1.0)
 
 cv2.namedWindow('mask', cv2.WINDOW_NORMAL)
 cv2.imshow('mask', mask*255)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
+is_gt_available = depth_gt > depth_threshold
+is_depth_close = np.logical_and(
+    np.abs(depth_rec - depth_gt) < difference_threshold,
+    is_gt_available)
+mask_diff = is_depth_close * 1.0
+mask_diff_length = np.sum(mask_diff)
 
+mask = mask * mask_diff
 mask_length = np.sum(mask)
+print('MaskDiff length: ', mask_diff_length)
+print('Mask length    : ', mask_length)
+print('')
 
 if mask_length == 0:
     print('Not selected')
 else:
+    MAE_rec = np.sum(err_abs_rec * mask_diff) / mask_diff_length
+    MAE_pred = np.sum(err_abs_pred * mask_diff) / mask_diff_length
+
+    MSE_rec = np.sum(err_sqr_rec * mask_diff) / mask_diff_length
+    MSE_pred = np.sum(err_sqr_pred * mask_diff) / mask_diff_length
+
+    # Root Mean Square Error
+    RMSE_rec = np.sqrt(MSE_rec)
+    RMSE_pred = np.sqrt(MSE_pred)
+
+    print('---- Diff Mask ----')
+    print('RMSE rec : ', RMSE_rec)
+    print('RMSE pred: ', RMSE_pred)
+    print('')
+    print('MAE rec  : ', MAE_rec)
+    print('MAE pred : ', MAE_pred)
+
+    MAE_rec = np.sum(err_abs_rec * mask) / mask_length
+    MAE_pred = np.sum(err_abs_pred * mask) / mask_length
+
     MSE_rec = np.sum(err_sqr_rec * mask) / mask_length
     MSE_pred = np.sum(err_sqr_pred * mask) / mask_length
 
     # Root Mean Square Error
     RMSE_rec = np.sqrt(MSE_rec)
     RMSE_pred = np.sqrt(MSE_pred)
+
+    print('---- Select Mask ----')
     print('RMSE rec : ', RMSE_rec)
     print('RMSE pred: ', RMSE_pred)
+    print('')
+    print('MAE rec  : ', MAE_rec)
+    print('MAE pred : ', MAE_pred)
+    
