@@ -265,7 +265,8 @@ def build_unet_model(batch_shape,
                         depth_threshold=0.1,
                         difference_threshold=0.05,
                         drop_rate=0.1,
-                        scaling=100):
+                        scaling=100,
+                        transfer_learn=False):
     def encode_block(x, ch):
         def base_block(x):
             x = BatchNormalization()(x)
@@ -352,6 +353,12 @@ def build_unet_model(batch_shape,
         return err / valid_length
 
     model = Model(input_batch, output_batch)
+
+    # Transfer Learning
+    if transfer_learn:
+        for l in model.layers[:38]:
+            l.trainable = False
+
     # adam = optimizers.Adam(lr=lr, decay=decay)
     model.compile(optimizer='adam',
                   metrics=['accuracy'],

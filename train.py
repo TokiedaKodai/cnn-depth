@@ -25,15 +25,36 @@ ARGV
 4-6: parameter
 '''
 argv = sys.argv
-_, out_local, is_model_exist, epoch_num, augment_type, dropout, net_type = argv
+# _, out_local, is_model_exist, epoch_num, augment_type, dropout, net_type, transfer_learn = argv
+_, out_local, learn_type, start, epoch_num, augment_type, dropout = argv
+
+# Transfer Learning
+is_transfer_learning = False
+is_finetune = False
+if learn_type is '1':
+    is_transfe r_learning = True
+elif learn_type is '2':
+    is_finetune = True
+
+is_start = True
+if start is '1':
+    is_start = False
+
+if is_transfer_learning or is_finetune:
+    is_model_exist = '1'
+else:
+    if is_start:
+        is_model_exist = '0'
+    else:
+        is_model_exist = '1'
+
+net_type = '0'
 
 os.chdir(os.path.dirname(os.path.abspath(__file__))) #set currenct dir
 
 #InputData
-# src_dir = '../data/input_200201'
-# src_dir = '../data/input_200302'
-# src_dir = '../data/input_200201-0312/'
 src_dir = '../data/input_200318'
+# src_dir = '../data/render'
 
 #RemoteOutput
 out_dir = 'output'
@@ -56,28 +77,19 @@ small 100cm : 44 - 47
 mid 110cm : 56 - 59
 '''
 '''data index'''
-# data_idx_range = range(6)
+# data_idx_range = range(80)
 
 data_idx_range = list(range(16)) # 0 - 15
 data_idx_range.extend(list(range(24, 40))) # 24 - 43
 data_idx_range.extend(list(range(40, 44)))
-# data_idx_range.extend(list(range(44, 48)))
 data_idx_range.extend(list(range(48, 56))) # 48 - 55
 data_idx_range.extend(list(range(60, 68))) # 60 -67
-# data_idx_range.extend(list(range(68, 73)))
-'''fake data'''
-# data_idx_range.extend(list(range(40, 48)))
-# data_idx_range.extend(list(range(52, 60)))
-'''no-rotate data'''
-# data_idx_range = [0, 1, 8, 9, 16, 17, 24, 25, 32, 33]
 
-# data_idx_range = list()
-# for i in range(5):
-#     data_idx_range.extend([0+8*i, 1+8*i, 3+8*i, 6+8*i])
 
 # parameters
 depth_threshold = 0.2
-difference_threshold = 0.005
+difference_threshold = 0.1
+# difference_threshold = 0.005
 # difference_threshold = 0.003
 patch_remove = 0.5
 # dropout_rate = 0.12
@@ -111,6 +123,7 @@ verbose = 1
 # verbose = 0
 
 difference_scaling = 100
+# difference_scaling = 10
 
 # augmentation
 is_augment = True
@@ -119,15 +132,12 @@ if augment_type == '0':
 augment_rate = 1
 
 # shift_max = 0.1
-# shift_max = 0.2
-shift_max = 0.5
+shift_max = 0.2
+# shift_max = 0.5
 # rotate_max = 45
 rotate_max = 90
-# zoom_range=[0.9, 1.1]
-# zoom_range=[0.8, 1.2]
-# zoom_range=[0.5, 5.0]
-zoom_range=[0.5, 1.5]
-# zoom_range=[0.1, 10.0]
+zoom_range=[0.8, 1.2]
+# zoom_range=[0.5, 1.5]
 
 def augment_zoom(img):
     h, w, s = img.shape
@@ -229,10 +239,13 @@ if is_model_exist is '0':
     resume_from = None  # start new without resume
 else:
     # resume_from = 'auto'  # resume from latest model file
- 
-    df_log = pd.read_csv(out_dir + '/training.log')
-    pre_epoch = int(df_log.tail(1).index.values) + 1
-    resume_from = pre_epoch 
+
+    if is_start:
+        resume_from = 0
+    else:
+        df_log = pd.read_csv(out_dir + '/training.log')
+        pre_epoch = int(df_log.tail(1).index.values) + 1
+        resume_from = pre_epoch
 
 
 def zip(*iterables):
@@ -257,11 +270,16 @@ def prepare_data(data_idx_range):
         w = size[1]
         return img[t:t + h, l:l + w]
 
-    # src_rec_dir = src_dir + '/rec'
+    src_rec_dir = src_dir + '/rec'
     src_rec_dir = src_dir + '/rec_ajusted'
     src_frame_dir = src_dir + '/frame'
     src_gt_dir = src_dir + '/gt'
     src_shading_dir = src_dir + '/shading'
+
+    # src_frame_dir = src_dir + '/proj'
+    # src_gt_dir = src_dir + '/gt'
+    # src_shading_dir = src_dir + '/shade'
+    # src_rec_dir = src_dir + '/rec'
 
     # read data
     print('loading data...')
@@ -275,6 +293,11 @@ def prepare_data(data_idx_range):
         # src_shading = src_shading_dir + '/shading{:03d}.png'.format(data_idx)
         src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(data_idx)
 
+        # src_bgra = src_frame_dir + '/{:05d}.png'.format(data_idx)
+        # src_depth_gt = src_gt_dir + '/{:05d}.bmp'.format(data_idx)
+        # src_shading = src_shading_dir + '/{:05d}.png'.format(data_idx)
+        # src_depth_gap = src_rec_dir + '/{:05d}.bmp'.format(data_idx)
+
         # read images
         bgr = cv2.imread(src_bgra, -1) / 255.
         depth_img_gap = cv2.imread(src_depth_gap, -1)
@@ -285,15 +308,33 @@ def prepare_data(data_idx_range):
         depth_gt = depth_tools.unpack_bmp_bgra_to_float(depth_img_gt)
         img_shape = bgr.shape[:2]
 
-        shading_bgr = cv2.imread(src_shading, -1)
+        # shading_bgr = cv2.imread(src_shading, -1)
         # shading = cv2.imread(src_shading, 0) # GrayScale
-        shading = np.zeros_like(shading_bgr)
-        shading[:, :, 0] = 0.299 * shading_bgr[:, :, 2] + 0.587 * shading_bgr[:, :, 1] + 0.114 * shading_bgr[:, :, 0]
+        # shading = np.zeros_like(shading_bgr)
+        # shading[:, :, 0] = 0.299 * shading_bgr[:, :, 2] + 0.587 * shading_bgr[:, :, 1] + 0.114 * shading_bgr[:, :, 0]
+        shading = cv2.imread(src_shading, 0)
+
+        is_shading_available = shading > 0
+        mask_shading = is_shading_available * 1.0
+        # depth_gap = depth_gt[:, :] * mask_shading
+        # mean_depth = np.sum(depth_gap) / np.sum(mask_shading)
+        # depth_gap = mean_depth * mask_shading
+        depth_gap *= mask_shading
 
         if is_shading_norm:
             shading = shading / np.max(shading)
+            # shading norm : mean 0, var 1
+            mean_shading = np.sum(shading) / np.sum(is_shading_available)
+            var_shading = np.var(shading)
+            shading = (shading - mean_shading) / var_shading
         else:
             shading = shading / 255.
+
+        # is_depth_available = depth_gt > depth_threshold
+        # mask_depth = is_depth_available * 1.0
+        # depth_gap = np.zeros_like(depth_gt)
+        # mean_depth = np.sum(depth_gt) / np.sum(mask_depth)
+        # depth_gap = mean_depth * mask_depth
 
 
         # normalization (may not be needed)
@@ -304,15 +345,18 @@ def prepare_data(data_idx_range):
 
         # merge bgr + depth_gap
         if is_input_frame:
-            bgrd = np.dstack([shading[:, :, 0], depth_gap, bgr[:, :, 0]])
+            if is_input_depth:
+                bgrd = np.dstack([shading[:, :], depth_gap, bgr[:, :, 0]])
+            else:
+                bgrd = np.dstack([shading[:, :], bgr[:, :, 0]])
         else:
-            bgrd = np.dstack([shading[:, :, 0], depth_gap])
+            bgrd = np.dstack([shading[:, :], depth_gap])
 
         # clip batches
         b_top, b_left = batch_tl
         b_h, b_w = batch_shape
-        top_coords = range(batch_tl[0], img_shape[0], batch_shape[0])
-        left_coords = range(batch_tl[1], img_shape[1], batch_shape[1])
+        top_coords = range(b_top, img_shape[0], b_h)
+        left_coords = range(b_left, img_shape[1], b_w)
 
         # add training data
         for top, left in product(top_coords, left_coords):
@@ -332,7 +376,7 @@ def prepare_data(data_idx_range):
             # do not add batch if not close ################
             is_gt_available = batch_gt_depth > depth_thre
             is_depth_close = np.logical_and(
-                np.abs(batch_train[:, :, 1] - batch_gt_depth) < difference_threshold,
+                np.abs(batch_gt_mask - batch_gt_depth) < difference_threshold,
                 is_gt_available)
             if np.count_nonzero(is_depth_close) < (b_h * b_w * patch_remove):
                 continue
@@ -353,7 +397,8 @@ def main():
     print('y train data:', y_data.shape)
 
     if is_augment:
-        x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, test_size=val_rate)
+        x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, 
+                                                        test_size=val_rate, shuffle=False)
     else:
         x_train, y_train = x_data, y_data
 
@@ -397,7 +442,8 @@ def main():
             difference_threshold=difference_threshold,
             # decay=decay,
             drop_rate=dropout_rate,
-            # scaling=difference_scaling
+            scaling=difference_scaling,
+            transfer_learn=is_transfer_learning
             )
     elif net_type is '1':
         model = network.build_resnet_model(
@@ -445,6 +491,8 @@ def main():
 
     # make output dirs
     if is_model_exist is '0':
+        # os.makedirs(out_dir, exist_ok=True)
+        # os.makedirs(model_dir, exist_ok=True)
         os.makedirs(out_dir)
         os.makedirs(model_dir)
 

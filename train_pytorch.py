@@ -1,6 +1,6 @@
-import depth_tools
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 from itertools import product
 import os
 from tqdm import tqdm
@@ -15,27 +15,39 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from torch.autograd import Variable
-from utils.dataset import BasicDataset
+import torchvision.transforms as transforms
 
+import depth_tools
 import network_pytorch as network
 
 #InputData
-src_dir = '../data/input_200318'
+# src_dir = '../data/input_200318'
+src_dir = '../data/render'
 #OutputDir
-# out_dir = 'output'
-# out_dir = '../output/' + out_local
-out_dir = '../output/output_test'
+out_dir = '../output/pytorch_test'
 
 '''data index'''
-data_idx_range = list(range(16)) # 0 - 15
-# data_idx_range.extend(list(range(24, 40))) # 24 - 43
-# data_idx_range.extend(list(range(40, 44)))
-# # data_idx_range.extend(list(range(44, 48)))
-# data_idx_range.extend(list(range(48, 56))) # 48 - 55
-# data_idx_range.extend(list(range(60, 68))) # 60 -67
-# # data_idx_range.extend(list(range(68, 73)))
+# train_idx_range = list(range(16)) # 0 - 15
+# train_idx_range.extend(list(range(24, 40))) # 24 - 43
+# train_idx_range.extend(list(range(40, 44)))
+# # train_idx_range.extend(list(range(44, 48)))
+# train_idx_range.extend(list(range(48, 56))) # 48 - 55
+# train_idx_range.extend(list(range(60, 68))) # 60 -67
+# # train_idx_range.extend(list(range(68, 73)))
 
-epochs = 10
+train_idx_range = list(range(40))
+test_idx_range = list(range(40, 50))
+
+# train_idx_range = list(range(80))
+# test_idx_range = list(range(80, 100))
+
+# train_idx_range = list(range(8))
+# test_idx_range = list(range(8, 10))
+
+# train_idx_range = list(range(160))
+# test_idx_range = list(range(160, 200))
+
+epochs = 100
 
 # parameters
 depth_threshold = 0.2
@@ -43,111 +55,92 @@ difference_threshold = 0.005
 patch_remove = 0.5
 dropout_rate = 0.1
 
-batch_shape = (120, 120)
-batch_tl = (0, 0)  # top, left
+img_shape = (1200, 1200)
+patch_shape = (120, 120)
+patch_tl = (0, 0)  # top, left
+num_patch = 100
 
-ch_num = 3
-train_batch_size = 64
+# clip patches
+p_top, p_left = patch_tl
+i_h, i_w = img_shape
+p_h, p_w = patch_shape
+top_coords = range(p_top, i_h, p_h)
+left_coords = range(p_left, i_w, p_w)
 
-difference_scaling = 100
+ch_num = 2
+train_batch_size = 100
+test_batch_size = 100
+num_print_in_epoch = 2
+num_batch_in_img = num_patch / test_batch_size
 
-is_shading_norm = True
+difference_scaling = 1
 
-def prepare_data(data_idx_range):
-    def clip_batch(img, top_left, size):
-        # t, l, h, w = *top_left, *size
-        t = top_left[0]
-        l = top_left[1]
-        h = size[0]
-        w = size[1]
+os.makedirs(out_dir, exist_ok=True)
+
+def prepare_data(train_idx_range, train=True):
+    def clip_patch(img, top_left, size):
+        t, l, h, w = *top_left, *size
+        # t = top_left[0] # for Python2
+        # l = top_left[1]
+        # h = size[0]
+        # w = size[1]
         return img[t:t + h, l:l + w]
 
-    # src_rec_dir = src_dir + '/rec'
-    src_rec_dir = src_dir + '/rec_ajusted'
-    src_frame_dir = src_dir + '/frame'
-    src_gt_dir = src_dir + '/gt'
-    src_shading_dir = src_dir + '/shading'
+    # data dir
+    src_depth_dir = src_dir + '/depth'
+    src_proj_dir = src_dir + '/proj'
+    src_shade_dir = src_dir + '/shade'
 
     # read data
     print('loading data...')
     x_train = []
     y_train = []
-    for data_idx in tqdm(data_idx_range):
-        src_bgra = src_frame_dir + '/frame{:03d}.png'.format(data_idx)
-        # src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(data_idx)
-        src_depth_gap = src_rec_dir + '/depth{:03d}.bmp'.format(data_idx)
-        src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(data_idx)
-        # src_shading = src_shading_dir + '/shading{:03d}.png'.format(data_idx)
-        src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(data_idx)
+    for data_idx in tqdm(train_idx_range):
+        # data name
+        src_depth = src_depth_dir + '/{:05d}.bmp'.format(data_idx)
+        src_proj = src_proj_dir + '/{:05d}.png'.format(data_idx)
+        src_shade = src_shade_dir + '/{:05d}.png'.format(data_idx)
 
-        # read images
-        bgr = cv2.imread(src_bgra, -1) / 255.
-        depth_img_gap = cv2.imread(src_depth_gap, -1)
-        # depth_gap = depth_tools.unpack_png_to_float(depth_img_gap)
-        depth_gap = depth_tools.unpack_bmp_bgra_to_float(depth_img_gap)
+        # read data
+        depth_img = cv2.imread(src_depth, -1)
+        proj = cv2.imread(src_proj, 0) / 255.
+        shade = cv2.imread(src_shade, 0) / 255.
+        
+        # depth from image
+        depth = depth_tools.unpack_bmp_bgra_to_float(depth_img)
 
-        depth_img_gt = cv2.imread(src_depth_gt, -1)
-        depth_gt = depth_tools.unpack_bmp_bgra_to_float(depth_img_gt)
-        img_shape = bgr.shape[:2]
+        is_depth_available = depth > depth_threshold
+        mask = is_depth_available * 1.0
 
-        shading_bgr = cv2.imread(src_shading, -1)
-        # shading = cv2.imread(src_shading, 0) # GrayScale
-        shading = np.zeros_like(shading_bgr)
-        shading[:, :, 0] = 0.299 * shading_bgr[:, :, 2] + 0.587 * shading_bgr[:, :, 1] + 0.114 * shading_bgr[:, :, 0]
+        # depth -> 0
+        mean_depth = np.sum(depth) / np.sum(mask)
+        depth -= mean_depth
+        depth *= mask
 
-        if is_shading_norm:
-            shading = shading / np.max(shading)
-        else:
-            shading = shading / 255.
+        # difference scaling
+        # print('')
+        # print(np.max(depth))
+        # print(np.min(depth))
+        depth *= difference_scaling
+        # print('')
+        # print(np.max(depth))
+        # print(np.min(depth))
 
-
-        # normalization (may not be needed)
-        # depth_gap /= depth_gap.max()
-        # depth_gt /= depth_gt.max()
-
-        depth_thre = depth_threshold
-
-        # merge bgr + depth_gap
-        bgrd = np.dstack([shading[:, :, 0], depth_gap, bgr[:, :, 0]])
-
-        # clip batches
-        b_top, b_left = batch_tl
-        b_h, b_w = batch_shape
-        top_coords = range(batch_tl[0], img_shape[0], batch_shape[0])
-        left_coords = range(batch_tl[1], img_shape[1], batch_shape[1])
+        x_img = np.dstack([proj, shade])
+        y_img = np.dstack([depth, mask])
 
         # add training data
         for top, left in product(top_coords, left_coords):
-            batch_train = clip_batch(bgrd, (top, left), batch_shape)
+            patch_x = clip_patch(x_img, (top, left), patch_shape)
+            patch_y = clip_patch(y_img, (top, left), patch_shape)
 
-            # do not add batch if not valid ################
-            # valid_pixels = np.logical_and(
-            #     batch_train[:, :, 0].mean() > 0,
-            #     batch_train[:, :, 1] > depth_threshold)
-            # if np.count_nonzero(valid_pixels) < (b_h * b_w * 0.5):
-            #     continue
-
-            batch_gt_depth = clip_batch(depth_gt, (top, left), batch_shape)
-            batch_gt_mask = clip_batch(depth_gap, (top, left), batch_shape)
-            # batch_gt = np.dstack([batch_gt_depth, batch_gt_mask])
-            batch_gt = np.dstack([batch_gt_depth])
-
-            # do not add batch if not close ################
-            is_gt_available = batch_gt_depth > depth_thre
-            is_depth_close = np.logical_and(
-                np.abs(batch_train[:, :, 1] - batch_gt_depth) < difference_threshold,
-                is_gt_available)
-            if np.count_nonzero(is_depth_close) < (b_h * b_w * patch_remove):
-                continue
+            # if train:
+            #     if np.sum(patch_y[:, :, 1]) < patch_shape[0] * patch_shape[1] * patch_remove:
+            #         continue
             
-            batch_train = batch_train.transpose(2, 0, 1)
-            # batch_gt = batch_gt.reshape((batch_shape[0], batch_shape[1], 2))
-            batch_gt = batch_gt.reshape((batch_shape[0], batch_shape[1], 1))
-            batch_gt = batch_gt.transpose(2, 0, 1)
-
-            x_train.append(batch_train)
-            y_train.append(batch_gt)
-    return np.array(x_train), np.array(y_train), depth_thre
+            x_train.append(patch_x.transpose(2, 0, 1))
+            y_train.append(patch_y.transpose(2, 0, 1))
+    return np.array(x_train), np.array(y_train)
 
 def mean_squared_error(predict, gt):
     depth_gt = gt[:, :, :, 0]
@@ -190,56 +183,133 @@ def my_collate_fn(batch):
     targets = torch.stack(targets)
     return images, targets
 
-def main(device):
-    x_data, y_data, depth_thre = prepare_data(data_idx_range)
-    print('x train data:', x_data.shape)
-    print('y train data:', y_data.shape)
+def loss_graph(list_loss):
+    list_x = range(len(list_loss))
+
+    plt.figure()
+    plt.plot(list_x, list_loss)
+    plt.savefig(out_dir + '/loss.pdf')
+
+def train(device):
+    x_data, y_data = prepare_data(train_idx_range)
+    print('x train shape:', x_data.shape)
+    print('y train shape:', y_data.shape)
+
+    len_data = len(x_data)
+    num_batch = len_data // train_batch_size
+    len_running = num_batch // num_print_in_epoch
 
     x_train = torch.from_numpy(x_data).float()
     y_train = torch.from_numpy(y_data).float()
 
-    # trainset = TensorDataset(x_train, y_train)
-    trainset = BasicDataset(x_train, y_train)
+    trainset = TensorDataset(x_train, y_train)
     trainloader = DataLoader(
         trainset, 
         batch_size=train_batch_size, 
-        shuffle=True, num_workers=2, 
-        collate_fn=my_collate_fn
+        shuffle=True,
+        num_workers=2, 
+        # collate_fn=my_collate_fn
     )
 
-    model = network.UNet(ch_num, 1)
+    model = network.UNet(ch_num, ch_num)
     model.to(device)
 
     # define loss function and optimier
     # criterion = mean_squared_error()
     criterion = nn.MSELoss()
-    optimizer = optim.Adam(model.parameters())
+    optimizer = optim.Adam(model.parameters()) #default lr=0.001
+
+    list_loss = []
 
     # train
     for epoch in range(epochs):
         running_loss = 0.0
         for i, (inputs, gts) in enumerate(trainloader, 0):
             inputs, gts = torch.Tensor(inputs).to(device), torch.Tensor(gts).to(device)
-            # inputs, gts = Variable(inputs), Variable(gts)
+            # print('inputs', inputs.shape)
             # zero the parameter gradients
             optimizer.zero_grad()
 
             # forward + backward + optimize
             outputs = model(inputs)
-            loss = criterion(outputs, gts)
+            # print('outputs', outputs.shape)
+            output, gt = outputs[:100, 0, :, :], gts[:, 0, :, :]
+            loss = criterion(output, gt)
             loss.backward()
             optimizer.step()
 
             # print statistics
             running_loss += loss.item()
-            # if i % 40 == 39:
-            #     print('[{:d}, {:5d}] loss: {:.3f}'
-            #           .format(epoch+1, i+1, running_loss/40))
-            #     running_loss = 0.0
-            print('[{:d}, {:5d}] loss: {:.3f}'.format(epoch+1, i+1, loss.item()))
+            if (i + 1) % len_running == 0:
+                tmp_loss = running_loss/len_running
+                list_loss.append(tmp_loss)
+                print('[{:5d}, {:5d}] loss: {:.5f}'
+                      .format(epoch+1, i+1, tmp_loss))
+                running_loss = 0.0
 
     print('Finished Training')
+    loss_graph(list_loss)
+    return model
 
+def predict(device, model):
+    def merge_patch(output_batch):
+        predict = torch.from_numpy(np.zeros(img_shape))
+        j = 0
+        for top, left in product(top_coords, left_coords):
+            t, l, h, w = top, left, *patch_shape
+            predict[t:t + h, l:l + w] = output_batch[j, :, :]
+            j += 1
+        return predict.numpy()
+
+    x_test, y_test = prepare_data(test_idx_range, train=False)
+    print('x test shape:', x_test.shape)
+    print('y test shape:', y_test.shape)
+
+    x_test = torch.from_numpy(x_test).float()
+    y_test = torch.from_numpy(y_test).float()
+
+    testset = TensorDataset(x_test, y_test)
+    testloader = DataLoader(
+        testset, 
+        batch_size=test_batch_size, 
+        shuffle=False,
+        num_workers=2
+    )
+
+    criterion = nn.MSELoss()
+
+    losses = 0.0
+    test_loss = 0.0
+    cnt = 0
+    list_predict = []
+
+    with torch.no_grad():
+        for i, (inputs, gts) in enumerate(testloader, 0):
+            inputs, gts = torch.Tensor(inputs).to(device), torch.Tensor(gts).to(device)
+            outputs = model(inputs)
+            output, gt = outputs[:100, 0, :, :], gts[:, 0, :, :]
+            # print(outputs.shape)
+            # print(output.shape)
+            loss = criterion(output, gt)
+            losses += loss
+            test_loss += loss
+            cnt += 1
+            if (i + 1) % num_batch_in_img == 0:
+                print('{:5d} loss: {:.5f}'.format(i + 1, losses / num_batch_in_img))
+                losses = 0.0
+
+                pred = merge_patch(output)
+                pred_bmp = depth_tools.pack_float_to_bmp_bgra(pred)
+                cv2.imwrite(out_dir + '/pred{:03d}.bmp'.format(test_idx_range[i]), pred_bmp)
+                list_predict.append(pred)
+
+    test_loss /= cnt
+    print('Test loss: {:.5f}'.format(test_loss))
+    return test_loss
+
+def main(device):
+    model = train(device)
+    test_loss = predict(device, model)
 
 if __name__ == '__main__':
     start_time = time.time()

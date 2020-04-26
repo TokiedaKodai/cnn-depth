@@ -162,7 +162,7 @@ def kmeans(depth, distance):
 
     return new_depth
 
-def gaussian_filter(image, distance):
+def gaussian_filter(image, distance, threshold=0.005):
     height, width = image.shape
     diameter = distance*2 + 1
     blur = cv2.GaussianBlur(image, (diameter, diameter), 0)
@@ -170,7 +170,7 @@ def gaussian_filter(image, distance):
     cp.cuda.set_allocator(cp.cuda.MemoryPool().malloc)
     blur = cp.asarray(blur)
     img = cp.asarray(image)
-    threshold = 0.005
+    
     masked_blur = cp.where(cp.abs(blur - img) < threshold, blur, 0)
 
     depth_threshold = 0.2
