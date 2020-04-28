@@ -72,7 +72,7 @@ def gen_graph(label, depth, list_pred, list_compares, comp_name, type_name='test
     plt.xlabel(type_name + ' data')
     # plt.xlabel('Fake test data')
     plt.ylabel('RMSE [m]')
-    plt.tick_params(labelsize=6)
+    plt.tick_params(labelsize=width*3)
     # plt.savefig(save_dir + 'errs_cmp{}_{}.pdf'.format(comp_name, type_name))
     plt.savefig(save_dir + 'errs_cmp{}.pdf'.format(comp_name))
 

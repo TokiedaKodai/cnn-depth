@@ -25,7 +25,7 @@ ARGV
 '''
 argv = sys.argv
 # _, out_dir, epoch_num, net_type = argv # output dir, epoch, network type
-_, out_dir, epoch_num = argv # output dir, epoch
+_, out_dir, epoch_num, real_data = argv # output dir, epoch
 
 net_type = '0'
 
@@ -61,8 +61,22 @@ select_range = epoch_num
 # src_dir = '../data/input_200201'
 # src_dir = '../data/input_200302'
 # src_dir = '../data/input_200201-0312/'
-src_dir = '../data/input_200318'
-# src_dir = '../data/render'
+
+is_real_data = False
+if real_data is '1':
+    is_real_data = True
+
+if is_real_data:
+    src_dir = '../data/input_200318'
+    predict_dir = out_dir + '/predict_{}_board'.format(epoch_num)
+    # predict_dir = out_dir + '/predict_{}_trans'.format(epoch_num)
+    data_num = 68
+else:
+    # src_dir = '../data/render'
+    src_dir = '../data/render_h005'
+    predict_dir = out_dir + '/predict_{}'.format(epoch_num)
+    # data_num = 100
+    data_num = 200
 
 # save predict depth PLY file
 is_save_ply = True
@@ -77,15 +91,10 @@ is_predict_norm = False
 
 # select from val loss
 is_select_val = True
-is_select_val = False
+# is_select_val = False
 
 
-predict_dir = out_dir + '/predict_{}'.format(epoch_num)
-predict_dir = out_dir + '/predict_{}_board'.format(epoch_num)
-predict_dir = out_dir + '/predict_{}_trans'.format(epoch_num)
 
-data_num = 68
-# data_num = 100
 
 data_idx_range = list(range(data_num))
 
@@ -96,18 +105,23 @@ small 100cm : 44 - 47
 mid 110cm : 56 - 59
 '''
 # test data
-test_range = list(range(16, 24)) # 16 - 24
-test_range.extend(list(range(44, 48))) # 44 - 48
-test_range.extend(list(range(56, 60))) # 56 - 60
-
-# test_range = list(range(80, 100))
+if is_real_data:
+    test_range = list(range(16, 24)) # 16 - 24
+    test_range.extend(list(range(44, 48))) # 44 - 48
+    test_range.extend(list(range(56, 60))) # 56 - 60
+else:
+    # test_range = list(range(80, 100))
+    test_range = list(range(160, 200))
 
 # train data
-train_range = list(range(16)) # 0 - 16, 24 - 40
-train_range.extend(list(range(24, 40)))
-train_range.extend(list(range(40, 44))) # 40 - 44
-train_range.extend(list(range(48, 56))) # 48 - 56, 60 - 68
-train_range.extend(list(range(60, 68)))
+if is_real_data:
+    train_range = list(range(16)) # 0 - 16, 24 - 40
+    train_range.extend(list(range(24, 40)))
+    train_range.extend(list(range(40, 44))) # 40 - 44
+    train_range.extend(list(range(48, 56))) # 48 - 56, 60 - 68
+    train_range.extend(list(range(60, 68)))
+else:
+    train_range = list(range(160))
 
 # save ply range
 save_ply_range = test_range
@@ -117,8 +131,11 @@ save_img_range = test_range
 
 vmin, vmax = (0.8, 1.4)
 vm_range = 0.05
-# vm_e_range = 0.02
-vm_e_range = 0.005
+if is_real_data:
+    vm_e_range = 0.005
+else:
+    vm_e_range = 0.01
+
 
 batch_shape = (1200, 1200)
 # batch_shape = (600, 600)
@@ -142,16 +159,17 @@ cam_params = {
 }
 
 def main():
-    src_rec_dir = src_dir + '/rec'
-    src_rec_dir = src_dir + '/rec_ajusted'
-    src_frame_dir = src_dir + '/frame'
-    src_gt_dir = src_dir + '/gt'
-    src_shading_dir = src_dir + '/shading'
-
-    # src_frame_dir = src_dir + '/proj'
-    # src_gt_dir = src_dir + '/gt'
-    # src_shading_dir = src_dir + '/shade'
-    # src_rec_dir = src_dir + '/rec'
+    if is_real_data:
+        src_rec_dir = src_dir + '/rec'
+        src_rec_dir = src_dir + '/rec_ajusted'
+        src_frame_dir = src_dir + '/frame'
+        src_gt_dir = src_dir + '/gt'
+        src_shading_dir = src_dir + '/shading'
+    else:
+        src_frame_dir = src_dir + '/proj'
+        src_gt_dir = src_dir + '/gt'
+        src_shading_dir = src_dir + '/shade'
+        src_rec_dir = src_dir + '/rec'
 
     if is_input_depth:
         if is_input_frame:
@@ -222,21 +240,22 @@ def main():
 
     os.makedirs(predict_dir, exist_ok=True)
     for test_idx in tqdm(data_idx_range):
-        src_bgra = src_frame_dir + '/frame{:03d}.png'.format(test_idx)
-        # src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(test_idx)
-        src_depth_gap = src_rec_dir + '/depth{:03d}.bmp'.format(test_idx)
-        src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(test_idx)
-        # src_shading = src_shading_dir + '/shading{:03d}.png'.format(test_idx)
-        src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(test_idx)
-
-        # src_bgra = src_frame_dir + '/{:05d}.png'.format(test_idx)
-        # src_depth_gt = src_gt_dir + '/{:05d}.bmp'.format(test_idx)
-        # src_shading = src_shading_dir + '/{:05d}.png'.format(test_idx)
-        # src_depth_gap = src_rec_dir + '/{:05d}.bmp'.format(test_idx)
+        if is_real_data:
+            src_bgra = src_frame_dir + '/frame{:03d}.png'.format(test_idx)
+            # src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(test_idx)
+            src_depth_gap = src_rec_dir + '/depth{:03d}.bmp'.format(test_idx)
+            src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(test_idx)
+            # src_shading = src_shading_dir + '/shading{:03d}.png'.format(test_idx)
+            src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(test_idx)
+        else:
+            src_bgra = src_frame_dir + '/{:05d}.png'.format(test_idx)
+            src_depth_gt = src_gt_dir + '/{:05d}.bmp'.format(test_idx)
+            src_shading = src_shading_dir + '/{:05d}.png'.format(test_idx)
+            src_depth_gap = src_rec_dir + '/{:05d}.bmp'.format(test_idx)
 
         # read images
         bgr = cv2.imread(src_bgra, -1) / 255.
-        bgr = bgr[:1200, :1200, :]
+        bgr = bgr[:1200, :1200, :] 
         depth_img_gap = cv2.imread(src_depth_gap, -1)
         depth_img_gap = depth_img_gap[:1200, :1200, :]
         # depth_gap = depth_tools.unpack_png_to_float(depth_img_gap)
@@ -262,12 +281,13 @@ def main():
         # depth_gap = mean_depth * mask_shading
         depth_gap *= mask_shading
 
-        if is_shading_norm:
-            shading = shading / np.max(shading)
-            # shading norm : mean 0, var 1
+        if is_shading_norm: # shading norm : mean 0, var 1
+            is_shading_available = shading > 16.0
+            mask_shading = is_shading_available * 1.0
             mean_shading = np.sum(shading) / np.sum(is_shading_available)
-            var_shading = np.var(shading)
-            shading = (shading - mean_shading) / var_shading
+            var_shading = np.sum(np.square((shading - mean_shading)*mask_shading)) / np.sum(mask_shading)
+            std_shading = np.sqrt(var_shading)
+            shading = (shading - mean_shading) / std_shading
         else:
             shading = shading / 255.
 
