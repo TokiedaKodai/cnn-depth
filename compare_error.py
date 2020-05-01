@@ -50,7 +50,7 @@ def get_list_pred(list_dir):
         list_pred.append(pred)
     return list_pred
 
-def gen_graph(label, depth, list_pred, list_compares, comp_name, type_name='test', save_dir='./'):
+def gen_graph(label, depth, list_pred, list_compares, comp_name, type_name='test', save_dir='./', error='RMSE'):
     list_color = ['blue', 'orange', 'lightgreen', 'lightblue', 'red']
     list_bar = []
     list_legend = ['depth']
@@ -71,18 +71,18 @@ def gen_graph(label, depth, list_pred, list_compares, comp_name, type_name='test
     # plt.title('No-fake data learning')
     plt.xlabel(type_name + ' data')
     # plt.xlabel('Fake test data')
-    plt.ylabel('RMSE [m]')
-    plt.tick_params(labelsize=width*3)
+    plt.ylabel('{} [m]'.format(error))
+    plt.tick_params(labelsize=6)
     # plt.savefig(save_dir + 'errs_cmp{}_{}.pdf'.format(comp_name, type_name))
-    plt.savefig(save_dir + 'errs_cmp{}.pdf'.format(comp_name))
+    plt.savefig(save_dir + 'errs_cmp{}_{}.pdf'.format(comp_name, error))
 
 def compare_error(dir_name, error='RMSE'):
     for type_name in ['train', 'test']:
     # for type_name in ['test']:
-        label, depth = get_index_depth(dir_name, type_name=type_name)
-        pred = get_predict(dir_name, type_name=type_name)
+        label, depth = get_index_depth(dir_name, type_name=type_name, error=error)
+        pred = get_predict(dir_name, type_name=type_name, error=error)
         # gen_graph(label, depth, [pred], ['predict'], comp_name='', type_name=type_name, save_dir=dir_name)
-        gen_graph(label, depth, [pred], ['predict'], comp_name=type_name, type_name=type_name, save_dir=dir_name)
+        gen_graph(label, depth, [pred], ['predict'], comp_name=type_name, type_name=type_name, save_dir=dir_name, error=error)
 
 def compare_errors(list_compares, comp_name='', data_dir=data_dir, output_dir=output_dir, pred_dir=pred_dir):
     list_dir = get_list_dir(list_compares, data_dir, output_dir, pred_dir)

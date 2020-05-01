@@ -58,6 +58,10 @@ save_period = 1
 # select_range = save_period * 10
 select_range = epoch_num
 
+
+mask_edge_size = 4
+mask_edge_size = 2
+
 #InputData
 # src_dir = '../data/input_200201'
 # src_dir = '../data/input_200302'
@@ -82,7 +86,7 @@ elif data_type is '2':
 
 # save predict depth PLY file
 is_save_ply = True
-is_save_ply = False
+# is_save_ply = False
 
 is_masked_ply = True
 
@@ -103,6 +107,9 @@ is_select_val = True
 is_pred_reverse = True
 # is_pred_reverse = False
 
+is_pred_pix_reverse = True
+# is_pred_pix_reverse = False
+
 is_pred_smooth = True
 # is_pred_smooth = False
 
@@ -114,7 +121,8 @@ if is_pred_smooth:
     predict_dir += '_smooth'
 if is_pred_reverse:
     predict_dir += '_reverse'
-
+if is_pred_pix_reverse:
+    predict_dir += '_pix'
 
 data_idx_range = list(range(data_num))
 
@@ -155,8 +163,8 @@ save_img_range = test_range
 
 vmin, vmax = (0.8, 1.4)
 vm_range = 0.05
-vm_e_range = 0.005
-
+# vm_e_range = 0.005
+vm_e_range = difference_threshold
 
 batch_shape = (1200, 1200)
 # batch_shape = (600, 600)
@@ -265,7 +273,7 @@ def main():
     err_strings = 'index,type,MAE depth,MAE predict,RMSE depth,RMSE predict\n'
 
     os.makedirs(predict_dir, exist_ok=True)
-    for test_idx in tqdm(data_idx_range):
+    for test_idx in tqdm(test_range):
         if data_type is '0':
             src_bgra = src_frame_dir + '/frame{:03d}.png'.format(test_idx)
             # src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(test_idx)
@@ -394,6 +402,30 @@ def main():
         mask = is_depth_close * 1.0 # no-complement
         # mask = is_train_area * 1.0 # complement
 
+        # delete mask edge
+        edge_size = mask_edge_size
+        mask_filter = np.zeros_like(mask)
+        for edge in range(1, edge_size):
+            edge_2 = edge * 2
+            mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[: b_h - edge_2, edge: b_w - edge]
+            mask *= mask_filter
+            mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[edge: b_h - edge, edge_2: ]
+            mask *= mask_filter
+            mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[edge_2: , edge: b_w - edge]
+            mask *= mask_filter
+            mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[edge: b_h - edge, : b_w - edge_2]
+            mask *= mask_filter
+
+            for i in range(2):
+                for j in range(2):
+                    mask_filter[
+                        edge * i: b_h - edge * (1 - i), edge * j: b_w - edge * (1 - j)
+                        ] = mask[
+                            edge * (1 - i): b_h - edge * i, edge * (1 - j): b_h - edge * j
+                            ]
+                    mask *= mask_filter
+
+
         mask_gt = is_gt_available * 1.0
 
         mask_length = np.sum(mask)
@@ -442,25 +474,25 @@ def main():
                 out_diff_ajusted = out_diff - bias_out_dif
 
             # error
-            depth_err_abs = np.abs(depth_gt - depth_gap)
-            depth_err_sqr = np.square(depth_gt - depth_gap)
+            depth_err_abs_R = np.abs(depth_gt - depth_gap)
+            depth_err_sqr_R = np.square(depth_gt - depth_gap)
             if is_pred_ajust:
-                predict_err_abs = np.abs(gt_diff - out_diff_ajusted)
-                predict_err_sqr = np.square(gt_diff - out_diff_ajusted)
+                predict_err_abs_R = np.abs(gt_diff - out_diff_ajusted)
+                predict_err_sqr_R = np.square(gt_diff - out_diff_ajusted)
             else:
-                predict_err_abs = np.abs(depth_gt - predict_depth)
-                predict_err_sqr = np.square(depth_gt - predict_depth)
+                predict_err_abs_R = np.abs(depth_gt - predict_depth)
+                predict_err_sqr_R = np.square(depth_gt - predict_depth)
 
             # error image
-            depth_err_R = depth_err_abs
-            predict_err_R = predict_err_abs
+            depth_err_R = depth_err_abs_R
+            predict_err_R = predict_err_abs_R
             predict_err_masked_R = predict_err_R * mask
             # Mean Absolute Error
-            predict_MAE_R = np.sum(predict_err_abs * mask) / mask_length
-            depth_MAE_R = np.sum(depth_err_abs * mask) / mask_length
+            predict_MAE_R = np.sum(predict_err_abs_R * mask) / mask_length
+            depth_MAE_R = np.sum(depth_err_abs_R * mask) / mask_length
             # Mean Squared Error
-            predict_MSE_R = np.sum(predict_err_sqr * mask) / mask_length
-            depth_MSE_R = np.sum(depth_err_sqr * mask) / mask_length
+            predict_MSE_R = np.sum(predict_err_sqr_R * mask) / mask_length
+            depth_MSE_R = np.sum(depth_err_sqr_R * mask) / mask_length
             # Root Mean Square Error
             predict_RMSE_R = np.sqrt(predict_MSE_R)
             depth_RMSE_R = np.sqrt(depth_MSE_R)
@@ -523,7 +555,15 @@ def main():
         predict_RMSE = np.sqrt(predict_MSE)
         depth_RMSE = np.sqrt(depth_MSE)
 
-        if is_pred_reverse:
+        if is_pred_pix_reverse:
+            predict_err_abs = np.where(predict_err_abs < predict_err_abs_R, predict_err_abs, predict_err_abs_R)
+            predict_err_sqr = np.where(predict_err_sqr < predict_err_sqr_R, predict_err_sqr, predict_err_sqr_R)
+            predict_err = predict_err_abs
+            predict_err_masked = predict_err * mask
+            predict_MAE = np.sum(predict_err_abs * mask) / mask_length
+            predict_MSE = np.sum(predict_err_sqr * mask) / mask_length
+            predict_RMSE = np.sqrt(predict_MSE)
+        elif is_pred_reverse:
             if predict_RMSE > predict_RMSE_R:
                 depth_err = depth_err_R
                 predict_err = predict_err_R
@@ -580,141 +620,92 @@ def main():
         # save fig
         # if test_idx in test_range:
         if test_idx in save_img_range:
-        # if test_idx not in train_range:
             # layout
-            fig = plt.figure(figsize=(8, 6))
-            gs_master = GridSpec(nrows=3,
+            fig = plt.figure(figsize=(7, 4))
+            gs_master = GridSpec(nrows=2,
                                 ncols=2,
-                                height_ratios=[1, 1, 1],
-                                width_ratios=[4, 0.1])
+                                height_ratios=[1, 1],
+                                width_ratios=[3, 0.1])
             gs_1 = GridSpecFromSubplotSpec(nrows=1,
-                                        ncols=4,
+                                        ncols=3,
                                         subplot_spec=gs_master[0, 0],
                                         wspace=0.05,
                                         hspace=0)
             gs_2 = GridSpecFromSubplotSpec(nrows=1,
-                                        ncols=4,
+                                        ncols=3,
                                         subplot_spec=gs_master[1, 0],
                                         wspace=0.05,
                                         hspace=0)
-
-            gs_3 = GridSpecFromSubplotSpec(nrows=1,
-                                        ncols=4,
-                                        subplot_spec=gs_master[2, 0],
-                                        wspace=0.05,
-                                        hspace=0)
-
-            gs_4 = GridSpecFromSubplotSpec(nrows=3,
+            gs_3 = GridSpecFromSubplotSpec(nrows=2,
                                         ncols=1,
-                                        subplot_spec=gs_master[0:2, 1])
+                                        subplot_spec=gs_master[0:1, 1])
 
-            ax_reg0 = fig.add_subplot(gs_1[0, 0])
-            ax_reg1 = fig.add_subplot(gs_1[0, 1])
-            ax_reg2 = fig.add_subplot(gs_1[0, 2])
-            ax_reg3 = fig.add_subplot(gs_1[0, 3])
+            ax_enh0 = fig.add_subplot(gs_1[0, 0])
+            ax_enh1 = fig.add_subplot(gs_1[0, 1])
+            ax_enh2 = fig.add_subplot(gs_1[0, 2])
 
-            ax_enh0 = fig.add_subplot(gs_2[0, 0])
-            ax_enh1 = fig.add_subplot(gs_2[0, 1])
-            ax_enh2 = fig.add_subplot(gs_2[0, 2])
-            ax_enh3 = fig.add_subplot(gs_2[0, 3])
+            ax_misc0 = fig.add_subplot(gs_2[0, 0])
 
-            ax_misc0 = fig.add_subplot(gs_3[0, 0])
+            ax_err_gap = fig.add_subplot(gs_2[0, 1])
+            ax_err_pred = fig.add_subplot(gs_2[0, 2])
 
-            ax_cb0 = fig.add_subplot(gs_4[0, 0])
-            ax_cb1 = fig.add_subplot(gs_4[1, 0])
-
-            # rmse
-            ax_err_gap = fig.add_subplot(gs_3[0, 1])
-            ax_err = fig.add_subplot(gs_3[0, 2])
-            ax_err_masked = fig.add_subplot(gs_3[0, 3])
-            ax_cb2 = fig.add_subplot(gs_4[2, 0])
+            ax_cb0 = fig.add_subplot(gs_3[0, 0])
+            ax_cb1 = fig.add_subplot(gs_3[1, 0])
 
             for ax in [
-                    ax_reg0, ax_reg1, ax_reg2, ax_reg3, ax_enh0, ax_enh1, ax_enh2,
-                    ax_enh3, ax_misc0, ax_err_gap, ax_err, ax_err_masked
+                    ax_enh0, ax_enh1, ax_enh2,
+                    ax_misc0, ax_err_gap, ax_err_pred
             ]:
                 ax.axis('off')
 
-            ax_reg0.imshow(depth_gt, vmin=vmin, vmax=vmax)
-            ax_reg1.imshow(depth_gap, vmin=vmin, vmax=vmax)
-            ax_reg2.imshow(predict_depth, vmin=vmin, vmax=vmax)
-            ax_reg3.imshow(predict_masked, vmin=vmin, vmax=vmax)
-
             # close up
-            # mean = np.median(depth_gt)
             mean = np.sum(depth_gt_masked) / mask_length
-            # vmin_s, vmax_s = mean - 0.05, mean + 0.05
             vmin_s, vmax_s = mean - vm_range, mean + vm_range
 
-            ax_enh0.imshow(depth_gt, cmap='jet', vmin=vmin_s, vmax=vmax_s)
-            ax_enh1.imshow(depth_gap, cmap='jet', vmin=vmin_s, vmax=vmax_s)
-            ax_enh2.imshow(predict_depth, cmap='jet', vmin=vmin_s, vmax=vmax_s)
-            ax_enh3.imshow(predict_masked, cmap='jet', vmin=vmin_s, vmax=vmax_s)
+            ax_enh0.imshow(depth_gt_masked, cmap='jet', vmin=vmin_s, vmax=vmax_s)
+            ax_enh1.imshow(depth_gap * mask, cmap='jet', vmin=vmin_s, vmax=vmax_s)
+            ax_enh2.imshow(predict_masked, cmap='jet', vmin=vmin_s, vmax=vmax_s)
 
             # misc
-            ax_misc0.imshow(shading_bgr[:, :, ::-1])
-            # ax_misc0.imshow(shading[:, :, ::-1])
-            # ax_misc1.imshow(train_segment, cmap='rainbow', vmin=0, vmax=2)
+            # ax_misc0.imshow(shading_bgr[:, :, ::-1])
+            ax_misc0.imshow(np.dstack([shading_gray, shading_gray, shading_gray]))
 
             # error
-            # vmin_e, vmax_e = 0, 0.05
-            # vmin_e, vmax_e = 0, 0.02
-            # vmin_e, vmax_e = 0, 0.01
             vmin_e, vmax_e = 0, vm_e_range
-            ax_err_gap.imshow(depth_err, cmap='jet', vmin=vmin_e, vmax=vmax_e)
-            ax_err.imshow(predict_err, cmap='jet', vmin=vmin_e, vmax=vmax_e)
-            ax_err_masked.imshow(predict_err_masked, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+            ax_err_gap.imshow(depth_err * mask, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+            ax_err_pred.imshow(predict_err_masked, cmap='jet', vmin=vmin_e, vmax=vmax_e)
 
             # title
-            ax_reg0.set_title('GT')
-            ax_reg1.set_title('Depth')
-            ax_reg2.set_title('Predict')
-            ax_reg3.set_title('Masked predict')
-
-            if test_idx in test_range:
-            # if test_idx not in train_range:
-                ax_enh0.set_title('Test data')
-            else:
-                ax_enh0.set_title('Train data')
-            ax_enh1.set_title('Train epoch:{}'.format(epoch_num))
-            ax_enh2.set_title('Model epoch:{}'.format(idx_min_loss))
-            ax_enh3.set_title('Train loss:{:.6f}'.format(min_loss))
-
-            ax_err_gap.set_title('Depth error:{:.6f}'.format(depth_loss))
-            ax_err_masked.set_title('Predict error:{:.6f}'.format(predict_loss))
+            # ax_enh0.set_title('Groud Truth')
+            # ax_enh1.set_title('Input Depth')
+            # ax_enh2.set_title('Predict')
+            # ax_err_gap.set_title('')
+            # ax_err_pred.set_title('')
 
             # colorbar
             plt.tight_layout()
             fig.savefig(io.BytesIO())
             cb_offset = -0.05
 
-            plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin, vmax=vmax)),
-                        cax=ax_cb0)
-            im_pos, cb_pos = ax_reg3.get_position(), ax_cb0.get_position()
-            ax_cb0.set_position([
-                cb_pos.x0 + cb_offset, im_pos.y0, cb_pos.x1 - cb_pos.x0,
-                im_pos.y1 - im_pos.y0
-            ])
-
             plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin_s, vmax=vmax_s),
                                         cmap='jet'),
-                        cax=ax_cb1)
-            im_pos, cb_pos = ax_enh3.get_position(), ax_cb1.get_position()
-            ax_cb1.set_position([
+                        cax=ax_cb0)
+            im_pos, cb_pos = ax_enh2.get_position(), ax_cb1.get_position()
+            ax_cb0.set_position([
                 cb_pos.x0 + cb_offset, im_pos.y0, cb_pos.x1 - cb_pos.x0,
                 im_pos.y1 - im_pos.y0
             ])
 
             plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin_e, vmax=vmax_e),
                                         cmap='jet'),
-                        cax=ax_cb2)
-            im_pos, cb_pos = ax_err.get_position(), ax_cb2.get_position()
-            ax_cb2.set_position([
+                        cax=ax_cb1)
+            im_pos, cb_pos = ax_err_pred.get_position(), ax_cb1.get_position()
+            ax_cb1.set_position([
                 cb_pos.x0 + cb_offset, im_pos.y0, cb_pos.x1 - cb_pos.x0,
                 im_pos.y1 - im_pos.y0
             ])
 
-            plt.savefig(predict_dir + '/compare-{:03d}.png'.format(test_idx), dpi=300)
+            plt.savefig(predict_dir + '/result-{:03d}.png'.format(test_idx), dpi=300)
             plt.close()
 
     with open(predict_dir + '/error_compare.txt', mode='w') as f:

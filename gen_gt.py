@@ -11,14 +11,22 @@ OUT = '../data/real/'
 
 idx = range(9)
 
-# calib 200427
+# calib 200317
 cam_params = {
-    'focal_length': 0.036917875,
+    'focal_length': 0.037009,
     'pix_x': 1.25e-05,
-    'pix_y': 1.2416172558410155e-05,
-    'center_x': 785.81,
-    'center_y': 571.109
+    'pix_y': 1.2381443057539635e-05,
+    'center_x': 790.902,
+    'center_y': 600.635
 }
+# calib 200427
+# cam_params = {
+#     'focal_length': 0.036917875,
+#     'pix_x': 1.25e-05,
+#     'pix_y': 1.2416172558410155e-05,
+#     'center_x': 785.81,
+#     'center_y': 571.109
+# }
 
 time_start = time.time()
 

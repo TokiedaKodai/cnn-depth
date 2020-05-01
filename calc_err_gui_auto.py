@@ -11,9 +11,10 @@ import depth_tools
 
 DIR = '../data/input_200318/'
 
-argv = sys.argv
-_, out_dir, epoch_num, option, idx = argv
-idx = int(idx)
+out_dir = 'vloss_aug_drop10'
+epoch_num = '500'
+option = 'board_norm_smooth'
+
 if option is '0':
     option = ''
 else:
@@ -25,6 +26,10 @@ out_dir = '../output/output_' + out_dir
 # predict_dir = out_dir + '/predict_{}'.format(epoch_num)
 # predict_dir = out_dir + '/predict_{}_test'.format(epoch_num)
 predict_dir = out_dir + '/predict_{}{}'.format(epoch_num, option)
+
+idx_range = list(range(16, 24)) # 16 - 24
+idx_range.extend(list(range(44, 48))) # 44 - 48
+idx_range.extend(list(range(56, 60))) # 56 - 60
 
 depth_threshold = 0.2
 difference_threshold = 0.005
@@ -176,115 +181,131 @@ def draw_on_window(event, x, y, flags, param):
             else:
                 eraser(window, ix, iy, x, y)
 
-img_gt = cv2.imread(DIR + 'gt/gt{:03d}.bmp'.format(idx), -1)
-img_rec = cv2.imread(DIR + 'rec_ajusted/depth{:03d}.bmp'.format(idx), -1)
-img_pred = cv2.imread(predict_dir + '/predict-{:03d}.bmp'.format(idx), -1)
+result_strings = 'index,MAE depth,MAE predict,RMSE depth,RMSE predict\n'
 
-depth_gt = depth_tools.unpack_bmp_bgra_to_float(img_gt)
-depth_rec = depth_tools.unpack_bmp_bgra_to_float(img_rec)
-depth_pred = depth_tools.unpack_bmp_bgra_to_float(img_pred)
-
-err_abs_rec = np.abs(depth_gt - depth_rec)
-err_abs_pred = np.abs(depth_gt - depth_pred)
-
-err_sqr_rec = np.square(depth_gt - depth_rec)
-err_sqr_pred = np.square(depth_gt - depth_pred)
-
-window = np.zeros((window_h, window_w))
-window[L_h_start:L_h_end, L_w_start:L_w_end] = copy.deepcopy(err_abs_rec)
-window[R_h_start:R_h_end, R_w_start:R_w_end] = copy.deepcopy(err_abs_pred)
-
-cv2.namedWindow('window', cv2.WINDOW_NORMAL)
-cv2.setMouseCallback('window', draw_on_window)
-
-vmin_e, vmax_e = 0, difference_threshold
-
-window = np.where(window > vmax_e, 2**16 - 1, (window / vmax_e)*(2**16 - 1))
-window = (window / 256).astype(np.uint8)
-window = cv2.applyColorMap(window, cv2.COLORMAP_JET)
-
-# mask = np.zeros((img_h, img_w), np.uint8)
-# mask_eraser = np.zeros((img_h, img_w), np.uint8)
-
-original_window = window
-
-while(1):
-    cv2.imshow('window', window)
-    cv2.rectangle(window, (0, 0), (window_w, space_top), (0, 0, 0), -1)
-    cv2.rectangle(window, (L_w_end, L_h_start), (R_w_start, R_h_end), (0, 0, 0), -1)
-
-    if select_L:
-        cv2.rectangle(window, (L_w_start, L_h_start - select_bar), (L_w_end, L_h_start), (0, 0, 255), -1)
-        cv2.rectangle(window, (R_w_start, R_h_start - select_bar), (R_w_end, R_h_start), (0, 0, 0), -1)
-    else:
-        cv2.rectangle(window, (L_w_start, L_h_start - select_bar), (L_w_end, L_h_start), (0, 0, 0), -1)
-        cv2.rectangle(window, (R_w_start, R_h_start - select_bar), (R_w_end, R_h_start), (0, 0, 255), -1)
-
-    k = cv2.waitKey(1) & 0xFF
-    if k == ord('m'):
-        mode = not mode
-    elif k == ord('1'):
-        select_L = True
-    elif k == ord('2'):
-        select_L = False
-    elif k == 27:
-        break
-cv2.destroyAllWindows()
-
-mask = np.where(mask_eraser == 1, 0.0, mask * 1.0)
-
-cv2.namedWindow('mask', cv2.WINDOW_NORMAL)
-cv2.imshow('mask', mask*255)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
-
-is_gt_available = depth_gt > depth_threshold
-is_depth_close = np.logical_and(
-    np.abs(depth_rec - depth_gt) < difference_threshold,
-    is_gt_available)
-mask_diff = is_depth_close * 1.0
-mask_diff_length = np.sum(mask_diff)
-
-mask = mask * mask_diff
-mask_length = np.sum(mask)
-print('MaskDiff length: ', mask_diff_length)
-print('Mask length    : ', mask_length)
-print('')
-
-if mask_length == 0:
-    print('Not selected')
-else:
-    MAE_rec = np.sum(err_abs_rec * mask_diff) / mask_diff_length
-    MAE_pred = np.sum(err_abs_pred * mask_diff) / mask_diff_length
-
-    MSE_rec = np.sum(err_sqr_rec * mask_diff) / mask_diff_length
-    MSE_pred = np.sum(err_sqr_pred * mask_diff) / mask_diff_length
-
-    # Root Mean Square Error
-    RMSE_rec = np.sqrt(MSE_rec)
-    RMSE_pred = np.sqrt(MSE_pred)
-
-    print('---- Diff Mask ----')
-    print('RMSE rec : ', RMSE_rec)
-    print('RMSE pred: ', RMSE_pred)
-    print('')
-    print('MAE rec  : ', MAE_rec)
-    print('MAE pred : ', MAE_pred)
-
-    MAE_rec = np.sum(err_abs_rec * mask) / mask_length
-    MAE_pred = np.sum(err_abs_pred * mask) / mask_length
-
-    MSE_rec = np.sum(err_sqr_rec * mask) / mask_length
-    MSE_pred = np.sum(err_sqr_pred * mask) / mask_length
-
-    # Root Mean Square Error
-    RMSE_rec = np.sqrt(MSE_rec)
-    RMSE_pred = np.sqrt(MSE_pred)
-
-    print('---- Select Mask ----')
-    print('RMSE rec : ', RMSE_rec)
-    print('RMSE pred: ', RMSE_pred)
-    print('')
-    print('MAE rec  : ', MAE_rec)
-    print('MAE pred : ', MAE_pred)
+for idx in idx_range:
+    mask = np.zeros((img_h, img_w), np.uint8)
+    mask_eraser = np.zeros((img_h, img_w), np.uint8)
     
+    result_strings += str(idx) + ','
+    
+    img_gt = cv2.imread(DIR + 'gt/gt{:03d}.bmp'.format(idx), -1)
+    img_rec = cv2.imread(DIR + 'rec_ajusted/depth{:03d}.bmp'.format(idx), -1)
+    img_pred = cv2.imread(predict_dir + '/predict-{:03d}.bmp'.format(idx), -1)
+
+    depth_gt = depth_tools.unpack_bmp_bgra_to_float(img_gt)
+    depth_rec = depth_tools.unpack_bmp_bgra_to_float(img_rec)
+    depth_pred = depth_tools.unpack_bmp_bgra_to_float(img_pred)
+
+    err_abs_rec = np.abs(depth_gt - depth_rec)
+    err_abs_pred = np.abs(depth_gt - depth_pred)
+
+    err_sqr_rec = np.square(depth_gt - depth_rec)
+    err_sqr_pred = np.square(depth_gt - depth_pred)
+
+    window = np.zeros((window_h, window_w))
+    window[L_h_start:L_h_end, L_w_start:L_w_end] = copy.deepcopy(err_abs_rec)
+    window[R_h_start:R_h_end, R_w_start:R_w_end] = copy.deepcopy(err_abs_pred)
+
+    cv2.namedWindow('window', cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback('window', draw_on_window)
+
+    vmin_e, vmax_e = 0, difference_threshold
+
+    window = np.where(window > vmax_e, 2**16 - 1, (window / vmax_e)*(2**16 - 1))
+    window = (window / 256).astype(np.uint8)
+    window = cv2.applyColorMap(window, cv2.COLORMAP_JET)
+
+    # mask = np.zeros((img_h, img_w), np.uint8)
+    # mask_eraser = np.zeros((img_h, img_w), np.uint8)
+
+    original_window = window
+
+    while(1):
+        cv2.imshow('window', window)
+        cv2.rectangle(window, (0, 0), (window_w, space_top), (0, 0, 0), -1)
+        cv2.rectangle(window, (L_w_end, L_h_start), (R_w_start, R_h_end), (0, 0, 0), -1)
+
+        if select_L:
+            cv2.rectangle(window, (L_w_start, L_h_start - select_bar), (L_w_end, L_h_start), (0, 0, 255), -1)
+            cv2.rectangle(window, (R_w_start, R_h_start - select_bar), (R_w_end, R_h_start), (0, 0, 0), -1)
+        else:
+            cv2.rectangle(window, (L_w_start, L_h_start - select_bar), (L_w_end, L_h_start), (0, 0, 0), -1)
+            cv2.rectangle(window, (R_w_start, R_h_start - select_bar), (R_w_end, R_h_start), (0, 0, 255), -1)
+
+        k = cv2.waitKey(1) & 0xFF
+        if k == ord('m'):
+            mode = not mode
+        elif k == ord('1'):
+            select_L = True
+        elif k == ord('2'):
+            select_L = False
+        elif k == 27:
+            break
+    cv2.destroyAllWindows()
+
+    mask = np.where(mask_eraser == 1, 0.0, mask * 1.0)
+
+    cv2.namedWindow('mask', cv2.WINDOW_NORMAL)
+    cv2.imshow('mask', mask*255)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    is_gt_available = depth_gt > depth_threshold
+    is_depth_close = np.logical_and(
+        np.abs(depth_rec - depth_gt) < difference_threshold,
+        is_gt_available)
+    mask_diff = is_depth_close * 1.0
+    mask_diff_length = np.sum(mask_diff)
+
+    mask = mask * mask_diff
+    mask_length = np.sum(mask)
+    # print('MaskDiff length: ', mask_diff_length)
+    # print('Mask length    : ', mask_length)
+    # print('')
+
+    if mask_length == 0:
+        print('Not selected')
+        result_strings += '\n'
+    else:
+        # MAE_rec = np.sum(err_abs_rec * mask_diff) / mask_diff_length
+        # MAE_pred = np.sum(err_abs_pred * mask_diff) / mask_diff_length
+
+        # MSE_rec = np.sum(err_sqr_rec * mask_diff) / mask_diff_length
+        # MSE_pred = np.sum(err_sqr_pred * mask_diff) / mask_diff_length
+
+        # # Root Mean Square Error
+        # RMSE_rec = np.sqrt(MSE_rec)
+        # RMSE_pred = np.sqrt(MSE_pred)
+
+        # print('---- Diff Mask ----')
+        # print('RMSE rec : ', RMSE_rec)
+        # print('RMSE pred: ', RMSE_pred)
+        # print('')
+        # print('MAE rec  : ', MAE_rec)
+        # print('MAE pred : ', MAE_pred)
+
+        MAE_rec = np.sum(err_abs_rec * mask) / mask_length
+        MAE_pred = np.sum(err_abs_pred * mask) / mask_length
+
+        MSE_rec = np.sum(err_sqr_rec * mask) / mask_length
+        MSE_pred = np.sum(err_sqr_pred * mask) / mask_length
+
+        # Root Mean Square Error
+        RMSE_rec = np.sqrt(MSE_rec)
+        RMSE_pred = np.sqrt(MSE_pred)
+
+        # print('---- Select Mask ----')
+        # print('RMSE rec : ', RMSE_rec)
+        # print('RMSE pred: ', RMSE_pred)
+        # print('')
+        # print('MAE rec  : ', MAE_rec)
+        # print('MAE pred : ', MAE_pred)
+    
+        for string in [MAE_rec, MAE_pred,RMSE_rec, RMSE_pred]:
+            result_strings += str(string) + ','
+        result_strings.rstrip(',')
+        result_strings = result_strings[:-1] + '\n'
+
+with open(predict_dir + '/err_cmp_select.txt', mode='w') as f:
+        f.write(result_strings)

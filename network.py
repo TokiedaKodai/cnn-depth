@@ -315,8 +315,9 @@ def build_unet_model(batch_shape,
     d1 = decode_block(d2, e1, 32)
     d0 = decode_block(d1, e0, 16)
 
-    d0 = Conv2D(2, (1, 1), padding='same')(d0)
-    output_batch = Activation('tanh')(d0)
+    # d0 = Conv2D(2, (1, 1), padding='same')(d0)
+    # output_batch = Activation('tanh')(d0)
+    output_batch = Conv2D(2, (1, 1), padding='same')(d0)
 
     def mean_squared_error_difference_learn(y_true, y_pred):
         depth_gt = y_true[:, :, :, 0]

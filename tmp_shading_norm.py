@@ -6,7 +6,7 @@ import os
 
 DIR = '../data/render/'
 DIR = '../data/real/'
-DIR = '../data/input_200318/'
+# DIR = '../data/input_200318/'
 
 OUT = DIR + 'shading_norm/'
 
@@ -17,8 +17,8 @@ os.makedirs(OUT, exist_ok=True)
 
 for i in range(9):
     # shading = cv2.imread(DIR + 'shade/{:05}.png'.format(i), 0)
-    # shading = cv2.imread(DIR + 'shade/{:05}.bmp'.format(i), 0)
-    shading = cv2.imread(DIR + 'shading/shading{:03}.bmp'.format(i), 0)
+    shading = cv2.imread(DIR + 'shade/{:05}.bmp'.format(i), 0)
+    # shading = cv2.imread(DIR + 'shading/shading{:03}.bmp'.format(i), 0)
 
     # print(np.max(shading))
     # print(np.min(shading))
@@ -48,7 +48,7 @@ for i in range(9):
 
     if is_shading_norm:
         # cv2.imwrite(OUT + '{:05}.png'.format(i), shading*255)
-        cv2.imwrite(OUT + '{:05}.png'.format(i), shading*64 + 192)
+        cv2.imwrite(OUT + '{:05}.png'.format(i), shading*64 + 128)
         # cv2.imwrite(OUT + '{:05}.png'.format(i), (shading*64 + 192)*mask_shading)
 
         # plt.figure()

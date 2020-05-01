@@ -54,8 +54,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__))) #set currenct dir
 
 #InputData
 src_dir = '../data/input_200318'
-# src_dir = '../data/render'
-src_dir = '../data/render_h005'
+src_dir = '../data/render'
+# src_dir = '../data/render_no-tilt'
 
 #RemoteOutput
 out_dir = 'output'
@@ -110,6 +110,7 @@ is_input_frame = True
 
 # normalization
 is_shading_norm = True
+# is_shading_norm = False
 
 batch_shape = (120, 120)
 batch_tl = (0, 0)  # top, left
@@ -228,8 +229,10 @@ if is_augment:
 
     x_datagen = ImageDataGenerator(**datagen_args)
     y_datagen = ImageDataGenerator(**datagen_args)
-    x_val_datagen = ImageDataGenerator(**datagen_args)
-    y_val_datagen = ImageDataGenerator(**datagen_args)
+    # x_val_datagen = ImageDataGenerator(**datagen_args)
+    # y_val_datagen = ImageDataGenerator(**datagen_args)
+    x_val_datagen = ImageDataGenerator()
+    y_val_datagen = ImageDataGenerator()
     seed_train = 1
     seed_val = 2
 
@@ -250,17 +253,17 @@ else:
         resume_from = pre_epoch
 
 
-def zip(*iterables):
-    sentinel = object()
-    iterators = [iter(it) for it in iterables]
-    while iterators:
-        result = []
-        for it in iterators:
-            elem = next(it, sentinel)
-            if elem is sentinel:
-                return
-            result.append(elem)
-        yield tuple(result)
+# def zip(*iterables):
+#     sentinel = object()
+#     iterators = [iter(it) for it in iterables]
+#     while iterators:
+#         result = []
+#         for it in iterators:
+#             elem = next(it, sentinel)
+#             if elem is sentinel:
+#                 return
+#             result.append(elem)
+#         yield tuple(result)
 
 
 def prepare_data(data_idx_range):
@@ -311,10 +314,9 @@ def prepare_data(data_idx_range):
         img_shape = bgr.shape[:2]
 
         # shading_bgr = cv2.imread(src_shading, -1)
-        # shading = cv2.imread(src_shading, 0) # GrayScale
-        # shading = np.zeros_like(shading_bgr)
         # shading[:, :, 0] = 0.299 * shading_bgr[:, :, 2] + 0.587 * shading_bgr[:, :, 1] + 0.114 * shading_bgr[:, :, 0]
-        shading = cv2.imread(src_shading, 0)
+        shading_gray = cv2.imread(src_shading, 0) # GrayScale
+        shading = shading_gray
 
         is_shading_available = shading > 0
         mask_shading = is_shading_available * 1.0
@@ -326,7 +328,7 @@ def prepare_data(data_idx_range):
         if is_shading_norm: # shading norm : mean 0, var 1
             is_shading_available = shading > 16.0
             mask_shading = is_shading_available * 1.0
-            mean_shading = np.sum(shading) / np.sum(is_shading_available)
+            mean_shading = np.sum(shading*mask_shading) / np.sum(mask_shading)
             var_shading = np.sum(np.square((shading - mean_shading)*mask_shading)) / np.sum(mask_shading)
             std_shading = np.sqrt(var_shading)
             shading = (shading - mean_shading) / std_shading
@@ -485,8 +487,8 @@ def main():
     else:
         # model_file, initial_epoch = resume_from
         initial_epoch = resume_from
-        model_file = model_dir + '/model-best.hdf5'
-        # model_file = model_dir + '/model-final.hdf5'
+        # model_file = model_dir + '/model-best.hdf5'
+        model_file = model_dir + '/model-final.hdf5'
         # print('resume from ', model_file, ', epoch number', initial_epoch)
 
     if resume_from is not None:
