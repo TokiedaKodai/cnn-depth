@@ -13,7 +13,7 @@ import random
 
 from keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
-from keras.callbacks import CSVLogger, ModelCheckpoint
+from keras.callbacks import CSVLogger, ModelCheckpoint, ReduceLROnPlateau
 
 import network
 
@@ -26,7 +26,19 @@ ARGV
 '''
 argv = sys.argv
 # _, out_local, is_model_exist, epoch_num, augment_type, dropout, net_type, transfer_learn = argv
+# _, out_local, learn_type, start, epoch_num, augment_type, dropout, learning_rate, norm = argv
+# _, out_local, learn_type, start, epoch_num, augment_type, dropout, scale = argv
 _, out_local, learn_type, start, epoch_num, augment_type, dropout = argv
+
+# learning_rate = '1'
+# if learning_rate is '0':
+#     learning_rate = 0.001
+# elif learning_rate is '1':
+#     learning_rate = 0.01
+# elif learning_rate is '2':
+#     learning_rate = 0.00001
+
+learning_rate = 0.001
 
 # Transfer Learning
 is_transfer_learning = False
@@ -40,7 +52,8 @@ is_start = True
 if start is '1':
     is_start = False
 
-if is_transfer_learning or is_finetune:
+# if is_transfer_learning or is_finetune:
+if is_transfer_learning:
     is_model_exist = '1'
 else:
     if is_start:
@@ -53,8 +66,11 @@ net_type = '0'
 os.chdir(os.path.dirname(os.path.abspath(__file__))) #set currenct dir
 
 #InputData
-src_dir = '../data/input_200318'
-src_dir = '../data/render'
+if is_transfer_learning or is_finetune:
+    src_dir = '../data/input_200318'
+else:
+    src_dir = '../data/render'
+
 # src_dir = '../data/render_no-tilt'
 
 #RemoteOutput
@@ -78,14 +94,19 @@ small 100cm : 44 - 47
 mid 110cm : 56 - 59
 '''
 '''data index'''
-data_idx_range = range(80)
-data_idx_range = range(160)
+# data_idx_range = range(80)
+# data_idx_range = range(160)
 
-# data_idx_range = list(range(16)) # 0 - 15
-# data_idx_range.extend(list(range(24, 40))) # 24 - 43
-# data_idx_range.extend(list(range(40, 44)))
-# data_idx_range.extend(list(range(48, 56))) # 48 - 55
-# data_idx_range.extend(list(range(60, 68))) # 60 -67
+if is_transfer_learning or is_finetune:
+    # data_idx_range = list(range(16)) # 0 - 15
+    # data_idx_range.extend(list(range(24, 40))) # 24 - 43
+    # data_idx_range.extend(list(range(40, 44)))
+    # data_idx_range.extend(list(range(48, 56))) # 48 - 55
+    # data_idx_range.extend(list(range(60, 68))) # 60 -67
+
+    data_idx_range = [0, 1, 3, 6, 40, 41, 42, 43, 48, 49, 50, 51]
+else:
+    data_idx_range = range(160)
 
 
 # parameters
@@ -98,7 +119,7 @@ patch_remove = 0.5
 dropout_rate = int(dropout) / 100
 
 # model
-save_period = 10
+save_period = 1
 
 # monitor train loss or val loss
 monitor_loss = 'val_loss'
@@ -111,11 +132,14 @@ is_input_frame = True
 # normalization
 is_shading_norm = True
 # is_shading_norm = False
+is_difference_norm = True
+# is_difference_norm = False
 
 batch_shape = (120, 120)
 batch_tl = (0, 0)  # top, left
 
 train_batch_size = 64
+# train_batch_size = 100
 # train_batch_size = 128
 
 # val_rate = 0.1
@@ -125,22 +149,28 @@ val_rate = 0.3
 verbose = 1
 # verbose = 0
 
-difference_scaling = 100
+# difference_scaling = 100
 # difference_scaling = 10
+difference_scaling = 1
+# difference_scaling = int(scale)
 
 # augmentation
 is_augment = True
 if augment_type == '0':
     is_augment = False
-augment_rate = 1
+# augment_rate = 1
+augment_rate = 4
+# augment_val_rate = 1
+augment_val_rate = 4
 
-# shift_max = 0.1
-shift_max = 0.2
+shift_max = 0.1
+# shift_max = 0.2
 # shift_max = 0.5
-# rotate_max = 45
-rotate_max = 90
-zoom_range=[0.8, 1.2]
+rotate_max = 45
+# rotate_max = 90
 # zoom_range=[0.5, 1.5]
+zoom_range=[0.9, 1.1]
+# zoom_range=[0.8, 1.2]
 
 def augment_zoom(img):
     h, w, s = img.shape
@@ -229,10 +259,12 @@ if is_augment:
 
     x_datagen = ImageDataGenerator(**datagen_args)
     y_datagen = ImageDataGenerator(**datagen_args)
-    # x_val_datagen = ImageDataGenerator(**datagen_args)
-    # y_val_datagen = ImageDataGenerator(**datagen_args)
-    x_val_datagen = ImageDataGenerator()
-    y_val_datagen = ImageDataGenerator()
+    # x_datagen = ImageDataGenerator() # train loss no-aug
+    # y_datagen = ImageDataGenerator() # train loss no-aug
+    x_val_datagen = ImageDataGenerator(**datagen_args) # val loss aug
+    y_val_datagen = ImageDataGenerator(**datagen_args) # val loss aug
+    # x_val_datagen = ImageDataGenerator()
+    # y_val_datagen = ImageDataGenerator()
     seed_train = 1
     seed_val = 2
 
@@ -250,7 +282,8 @@ else:
     else:
         df_log = pd.read_csv(out_dir + '/training.log')
         pre_epoch = int(df_log.tail(1).index.values) + 1
-        resume_from = pre_epoch
+        # resume_from = pre_epoch
+        resume_from = 'auto'
 
 
 # def zip(*iterables):
@@ -275,33 +308,35 @@ def prepare_data(data_idx_range):
         w = size[1]
         return img[t:t + h, l:l + w]
 
-    # src_rec_dir = src_dir + '/rec'
-    # src_rec_dir = src_dir + '/rec_ajusted'
-    # src_frame_dir = src_dir + '/frame'
-    # src_gt_dir = src_dir + '/gt'
-    # src_shading_dir = src_dir + '/shading'
-
-    src_frame_dir = src_dir + '/proj'
-    src_gt_dir = src_dir + '/gt'
-    src_shading_dir = src_dir + '/shade'
-    src_rec_dir = src_dir + '/rec'
+    if is_transfer_learning or is_finetune:
+        src_rec_dir = src_dir + '/rec'
+        src_rec_dir = src_dir + '/rec_ajusted'
+        src_frame_dir = src_dir + '/frame'
+        src_gt_dir = src_dir + '/gt'
+        src_shading_dir = src_dir + '/shading'
+    else:
+        src_frame_dir = src_dir + '/proj'
+        src_gt_dir = src_dir + '/gt'
+        src_shading_dir = src_dir + '/shade'
+        src_rec_dir = src_dir + '/rec'
 
     # read data
     print('loading data...')
     x_train = []
     y_train = []
     for data_idx in tqdm(data_idx_range):
-        # src_bgra = src_frame_dir + '/frame{:03d}.png'.format(data_idx)
-        # # src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(data_idx)
-        # src_depth_gap = src_rec_dir + '/depth{:03d}.bmp'.format(data_idx)
-        # src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(data_idx)
-        # # src_shading = src_shading_dir + '/shading{:03d}.png'.format(data_idx)
-        # src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(data_idx)
-
-        src_bgra = src_frame_dir + '/{:05d}.png'.format(data_idx)
-        src_depth_gt = src_gt_dir + '/{:05d}.bmp'.format(data_idx)
-        src_shading = src_shading_dir + '/{:05d}.png'.format(data_idx)
-        src_depth_gap = src_rec_dir + '/{:05d}.bmp'.format(data_idx)
+        if is_transfer_learning or is_finetune:
+            src_bgra = src_frame_dir + '/frame{:03d}.png'.format(data_idx)
+            # src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(data_idx)
+            src_depth_gap = src_rec_dir + '/depth{:03d}.bmp'.format(data_idx)
+            src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(data_idx)
+            # src_shading = src_shading_dir + '/shading{:03d}.png'.format(data_idx)
+            src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(data_idx)
+        else:
+            src_bgra = src_frame_dir + '/{:05d}.png'.format(data_idx)
+            src_depth_gt = src_gt_dir + '/{:05d}.bmp'.format(data_idx)
+            src_shading = src_shading_dir + '/{:05d}.png'.format(data_idx)
+            src_depth_gap = src_rec_dir + '/{:05d}.bmp'.format(data_idx)
 
         # read images
         bgr = cv2.imread(src_bgra, -1) / 255.
@@ -357,6 +392,23 @@ def prepare_data(data_idx_range):
         else:
             bgrd = np.dstack([shading[:, :], depth_gap])
 
+        # difference
+        difference = depth_gt - depth_gap
+        # mask
+        is_gt_available = depth_gt > depth_thre
+        is_depth_close = np.logical_and(
+                np.abs(difference) < difference_threshold,
+                is_gt_available)
+        mask = is_depth_close.astype(np.float32)
+
+        if is_difference_norm:
+            mean_difference = np.sum(difference * mask) / np.sum(mask)
+            var_difference = np.sum(np.square((difference - mean_difference)*mask)) / np.sum(mask)
+            std_difference = np.sqrt(var_difference)
+            difference = (difference - mean_difference) / std_difference
+
+        gt = np.dstack([difference, mask])
+
         # clip batches
         b_top, b_left = batch_tl
         b_h, b_w = batch_shape
@@ -366,24 +418,12 @@ def prepare_data(data_idx_range):
         # add training data
         for top, left in product(top_coords, left_coords):
             batch_train = clip_batch(bgrd, (top, left), batch_shape)
+            batch_gt = clip_batch(gt, (top, left), batch_shape)
 
-            # do not add batch if not valid ################
-            # valid_pixels = np.logical_and(
-            #     batch_train[:, :, 0].mean() > 0,
-            #     batch_train[:, :, 1] > depth_threshold)
-            # if np.count_nonzero(valid_pixels) < (b_h * b_w * 0.5):
-            #     continue
-
-            batch_gt_depth = clip_batch(depth_gt, (top, left), batch_shape)
-            batch_gt_mask = clip_batch(depth_gap, (top, left), batch_shape)
-            batch_gt = np.dstack([batch_gt_depth, batch_gt_mask])
+            batch_mask = batch_gt[:, :, 1]
 
             # do not add batch if not close ################
-            is_gt_available = batch_gt_depth > depth_thre
-            is_depth_close = np.logical_and(
-                np.abs(batch_gt_mask - batch_gt_depth) < difference_threshold,
-                is_gt_available)
-            if np.count_nonzero(is_depth_close) < (b_h * b_w * patch_remove):
+            if np.sum(batch_mask) < (b_h * b_w * patch_remove):
                 continue
 
             if is_input_depth or is_input_frame:
@@ -392,7 +432,7 @@ def prepare_data(data_idx_range):
                 # x_train.append(batch_train[:, :, 0].reshape((*batch_shape, 1)))
                 x_train.append(batch_train[:, :, 0].reshape((batch_shape[0], batch_shape[1], 1)))
             # y_train.append(batch_gt.reshape((*batch_shape, 2)))
-            y_train.append(batch_gt.reshape((batch_shape[0], batch_shape[1], 2)))
+            y_train.append(batch_gt)
     return np.array(x_train), np.array(y_train), depth_thre
 
 
@@ -443,12 +483,10 @@ def main():
         model = network.build_unet_model(
             batch_shape,
             ch_num,
-            depth_threshold=depth_thre,
-            difference_threshold=difference_threshold,
             # decay=decay,
             drop_rate=dropout_rate,
-            scaling=difference_scaling,
-            transfer_learn=is_transfer_learning
+            transfer_learn=is_transfer_learning,
+            lr=learning_rate
             )
     elif net_type is '1':
         model = network.build_resnet_model(
@@ -502,19 +540,23 @@ def main():
         os.makedirs(model_dir)
 
     # train
-    model_save_cb = ModelCheckpoint(model_dir + '/model-best.hdf5',
-                                    # model_dir + '/model-{epoch:03d}.hdf5',
-                                    monitor=monitor_loss,
-                                    verbose=verbose,
-                                    save_best_only=True,
-                                    save_weights_only=True,
-                                    mode='min',
-                                    period=1)
-    # model_save_cb = ModelCheckpoint(model_dir + '/model-{epoch:03d}.hdf5',
-    #                                 period=save_period,
-    #                                 save_weights_only=True)
+    # model_save_cb = ModelCheckpoint(model_dir + '/model-best.hdf5',
+    #                                 # model_dir + '/model-{epoch:03d}.hdf5',
+    #                                 monitor=monitor_loss,
+    #                                 verbose=verbose,
+    #                                 save_best_only=True,
+    #                                 save_weights_only=True,
+    #                                 mode='min',
+    #                                 period=1)
+    model_save_cb = ModelCheckpoint(model_dir + '/model-{epoch:03d}.hdf5',
+                                    period=save_period,
+                                    save_weights_only=True)
     csv_logger_cb = CSVLogger(out_dir + '/training.log',
                               append=(resume_from is not None))
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss',
+                                    factor=0.5,
+                                    patience=10,
+                                    verbose=1)
 
     print('training')
     if is_augment:
@@ -525,8 +567,9 @@ def main():
             initial_epoch=initial_epoch,
             shuffle=True,
             callbacks=[model_save_cb, csv_logger_cb],
+            # callbacks=[model_save_cb, csv_logger_cb, reduce_lr],
             validation_data=val_generator,
-            validation_steps=len(x_val)*augment_rate / train_batch_size + 1,
+            validation_steps=len(x_val)*augment_val_rate / train_batch_size + 1,
             verbose=verbose)
     else:
         model.fit(
@@ -540,7 +583,8 @@ def main():
             callbacks=[model_save_cb, csv_logger_cb],
             verbose=verbose)
 
-    model.save_weights(model_dir + '/model-final.hdf5')
+    model.save_weights(out_dir + '/model-final.hdf5')
+    # model.save_weights(model_dir + '/model-final.hdf5')
 
 
 if __name__ == "__main__":

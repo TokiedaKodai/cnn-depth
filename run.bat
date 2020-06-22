@@ -1,57 +1,38 @@
-REM output_dir, learning type, start, epoch num, aug type, drop rate %
-
-REM python train.py vloss_aug_drop10 0 0 100 7 10
-REM python predict.py vloss_aug_drop10 100 0
-REM python predict.py vloss_aug_drop10 100 1
-REM python predict.py vloss_aug_drop10 100 2
-
-REM python train.py vloss_aug_drop10 0 1 200 7 10
-REM python predict.py vloss_aug_drop10 200 0
-REM python predict.py vloss_aug_drop10 200 1
-REM python predict.py vloss_aug_drop10 200 2
-
-REM python train.py vloss_aug_drop10 0 1 300 7 10
-REM python predict.py vloss_aug_drop10 300 0
-REM python predict.py vloss_aug_drop10 300 1
-REM python predict.py vloss_aug_drop10 300 2
-
-REM python train.py vloss_aug_drop10 0 1 400 7 10
-REM python predict.py vloss_aug_drop10 400 0
-REM python predict.py vloss_aug_drop10 400 1
-REM python predict.py vloss_aug_drop10 400 2
-
-REM python train.py vloss_aug_drop10 0 1 500 7 10
-python predict.py vloss_aug_drop10 500 0
-python predict.py vloss_aug_drop10 500 1
-python predict.py vloss_aug_drop10 500 2
-
-
-
-REM python train.py vloss_no-aug_drop10 0 0 100 0 10
-REM python predict.py vloss_no-aug_drop10 100 0
-REM python predict.py vloss_no-aug_drop10 100 1
-REM python predict.py vloss_no-aug_drop10 100 2
-
-REM python train.py vloss_no-aug_drop10 0 1 200 0 10
-REM python predict.py vloss_no-aug_drop10 200 0
-REM python predict.py vloss_no-aug_drop10 200 1
-REM python predict.py vloss_no-aug_drop10 200 2
-
-REM python train.py vloss_no-aug_drop10 0 1 300 0 10
-REM python predict.py vloss_no-aug_drop10 300 0
-REM python predict.py vloss_no-aug_drop10 300 1
-REM python predict.py vloss_no-aug_drop10 300 2
-
-REM python train.py vloss_no-aug_drop10 0 1 400 0 10
-REM python predict.py vloss_no-aug_drop10 400 0
-REM python predict.py vloss_no-aug_drop10 400 1
-REM python predict.py vloss_no-aug_drop10 400 2
-
-REM python train.py vloss_no-aug_drop10 0 1 500 0 10
-python predict.py vloss_no-aug_drop10 500 0
-python predict.py vloss_no-aug_drop10 500 1
-python predict.py vloss_no-aug_drop10 500 2
-
-
+REM output_dir, learning type, start, epoch num, aug type, drop rate %, lr
 REM timeout /t 100 > nul
 REM shutdown -s -t 300
+
+REM python train.py vaug_half_x4_one_reduce 0 0 200 7 10 2
+REM python predict.py vaug_half_x4_one_reduce 200 1
+
+REM python train.py vaug_half_x4_lr0001_one_3 0 0 200 7 10 3
+REM python predict.py vaug_half_x4_lr0001_one_3 200 1
+
+REM python train.py vaug_half_x4_lr002_one 0 0 200 7 10 2
+REM python predict.py vaug_half_x4_lr002_one 200 1
+
+REM python train.py vaug_half_x4_lr005_one 0 0 200 7 10 3
+REM python predict.py vaug_half_x4_lr005_one 200 1
+
+
+
+
+REM python train.py vaug_half_x4_dif-no-norm 0 0 50 7 10
+REM python predict.py vaug_half_x4_dif-no-norm 50 1
+
+REM python train.py vaug_half_x4_dif-no-norm_lr0001 0 0 50 7 10
+REM python predict.py vaug_half_x4_dif-no-norm_lr0001 50 1
+
+
+REM python train.py vaug_half_x4_dif-norm 0 0 50 7 10
+REM python predict.py vaug_half_x4_dif-norm 50 1
+
+python train.py vaug_half_x4_dif-norm 0 1 150 7 10
+python predict.py vaug_half_x4_dif-norm 150 1
+
+python train.py vaug_half_x4_dif-norm 0 1 200 7 10
+python predict.py vaug_half_x4_dif-norm 200 1
+
+
+REM python train.py vaug_half_x4_dif-norm_lr01 0 0 50 7 10
+REM python predict.py vaug_half_x4_dif-norm_lr01 50 1

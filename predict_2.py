@@ -42,10 +42,10 @@ is_shading_norm = True
 depth_threshold = 0.2
 # difference_threshold = 0.1
 difference_threshold = 0.005
-# difference_threshold = 0.003
+difference_threshold = 0.01
 patch_remove = 0.5
-difference_scaling = 100
-# difference_scaling = 10
+# difference_scaling = 100
+difference_scaling = 1
 
 # input
 is_input_depth = True
@@ -75,7 +75,7 @@ if data_type is '0':
 elif data_type is '1':
     src_dir = '../data/render'
     # src_dir = '../data/render_no-tilt'
-    predict_dir = out_dir + '/predict_{}'.format(epoch_num)
+    predict_dir = out_dir + '/predict2_{}_vloss'.format(epoch_num)
     # data_num = 100
     data_num = 200
 elif data_type is '2':
@@ -86,7 +86,7 @@ elif data_type is '2':
 
 # save predict depth PLY file
 is_save_ply = True
-# is_save_ply = False
+is_save_ply = False
 
 is_masked_ply = True
 
@@ -104,14 +104,21 @@ is_pred_ajust = False
 is_select_val = True
 # is_select_val = False
 
+# Reverse #############################
 is_pred_reverse = True
-# is_pred_reverse = False
+is_pred_reverse = False
 
 is_pred_pix_reverse = True
-# is_pred_pix_reverse = False
+is_pred_pix_reverse = False
+
+is_reverse_threshold = True
+is_reverse_threshold = False
+
+r_thre = 0.002
+#######################################
 
 is_pred_smooth = True
-# is_pred_smooth = False
+is_pred_smooth = False
 
 if is_predict_norm:
     predict_dir += '_norm'
@@ -123,6 +130,8 @@ if is_pred_reverse:
     predict_dir += '_reverse'
 if is_pred_pix_reverse:
     predict_dir += '_pix'
+if is_reverse_threshold:
+    predict_dir += '_thre=' + str(r_thre)
 
 data_idx_range = list(range(data_num))
 
@@ -134,9 +143,13 @@ mid 110cm : 56 - 59
 '''
 # test data
 if data_type is '0':
-    test_range = list(range(16, 24)) # 16 - 24
-    test_range.extend(list(range(44, 48))) # 44 - 48
-    test_range.extend(list(range(56, 60))) # 56 - 60
+    # test_range = list(range(16, 24)) # 16 - 24
+    # test_range.extend(list(range(44, 48))) # 44 - 48
+    # test_range.extend(list(range(56, 60))) # 56 - 60
+
+    test_range = [16, 17, 19, 22, 44, 45, 46, 47, 52, 53, 54, 55]
+    data_idx_range = [0, 1, 3, 6, 16, 17, 19, 22]
+    data_idx_range.extend(list(range(40, 56)))
 elif data_type is '1':
     # test_range = list(range(80, 100))
     test_range = list(range(160, 200))
@@ -150,6 +163,8 @@ if data_type is '0':
     train_range.extend(list(range(40, 44))) # 40 - 44
     train_range.extend(list(range(48, 56))) # 48 - 56, 60 - 68
     train_range.extend(list(range(60, 68)))
+
+    train_range = [0, 1, 3, 6, 40, 41, 42, 43, 48, 49, 50, 51]
 elif data_type is '1':
     train_range = list(range(160))
 elif data_type is '2':
@@ -164,7 +179,8 @@ save_img_range = test_range
 vmin, vmax = (0.8, 1.4)
 vm_range = 0.05
 # vm_e_range = 0.005
-vm_e_range = difference_threshold
+vm_e_range = 0.003
+# vm_e_range = difference_threshold
 
 batch_shape = (1200, 1200)
 # batch_shape = (600, 600)
@@ -234,14 +250,15 @@ def main():
     df.index = df.index + 1
     # select minimum loss model
     is_select_min_loss_model = True
+    # is_select_min_loss_model = False
     if is_select_min_loss_model:
         df_select = df[df.index>epoch_num-select_range]
         df_select = df_select[df_select.index<=epoch_num]
         df_select = df_select[df_select.index%save_period==0]
         min_loss = df_select.min()
         idx_min_loss = df_select.idxmin()
-        # model.load_weights(out_dir + '/model/model-%03d.hdf5'%idx_min_loss)
-        model.load_weights(out_dir + '/model/model-best.hdf5')
+        model.load_weights(out_dir + '/model/model-%03d.hdf5'%idx_min_loss)
+        # model.load_weights(out_dir + '/model/model-best.hdf5')
     else:
         model.load_weights(out_dir + '/model-final.hdf5')
     
@@ -273,7 +290,7 @@ def main():
     err_strings = 'index,type,MAE depth,MAE predict,RMSE depth,RMSE predict\n'
 
     os.makedirs(predict_dir, exist_ok=True)
-    for test_idx in tqdm(test_range):
+    for test_idx in tqdm(data_idx_range):
         if data_type is '0':
             src_bgra = src_frame_dir + '/frame{:03d}.png'.format(test_idx)
             # src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(test_idx)
@@ -556,8 +573,14 @@ def main():
         depth_RMSE = np.sqrt(depth_MSE)
 
         if is_pred_pix_reverse:
-            predict_err_abs = np.where(predict_err_abs < predict_err_abs_R, predict_err_abs, predict_err_abs_R)
-            predict_err_sqr = np.where(predict_err_sqr < predict_err_sqr_R, predict_err_sqr, predict_err_sqr_R)
+            if is_reverse_threshold:
+                predict_err_abs = np.where(np.logical_and(predict_err_abs > r_thre, predict_err_abs > predict_err_abs_R), 
+                                            predict_err_abs_R, predict_err_abs)
+                predict_err_sqr = np.where(np.logical_and(predict_err_sqr > r_thre**2, predict_err_sqr > predict_err_sqr_R), 
+                                            predict_err_sqr_R, predict_err_sqr)
+            else:
+                predict_err_abs = np.where(predict_err_abs < predict_err_abs_R, predict_err_abs, predict_err_abs_R)
+                predict_err_sqr = np.where(predict_err_sqr < predict_err_sqr_R, predict_err_sqr, predict_err_sqr_R)
             predict_err = predict_err_abs
             predict_err_masked = predict_err * mask
             predict_MAE = np.sum(predict_err_abs * mask) / mask_length
@@ -604,8 +627,7 @@ def main():
         # save predicted depth
         if test_idx in save_img_range:
             predict_bmp = depth_tools.pack_float_to_bmp_bgra(predict_masked)
-            cv2.imwrite(predict_dir + '/predict-{:03d}.bmp'.format(test_idx),
-                        predict_bmp)
+            cv2.imwrite(predict_dir + '/predict-{:03d}.bmp'.format(test_idx), predict_bmp)
 
         # save ply
         if is_save_ply:

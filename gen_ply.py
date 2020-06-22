@@ -7,13 +7,16 @@ import common_tools as tool
 import depth_tools
 
 # DIR = '../output/'
-DIR = '../data/input_200318/'
+# DIR = '../data/input_200318/'
+DIR = '../data/render/'
 
-idx = list(range(16, 24))
-idx.extend(list(range(44, 48)))
-idx.extend(list(range(56, 60)))
+# idx = list(range(16, 24))
+# idx.extend(list(range(44, 48)))
+# idx.extend(list(range(56, 60)))
 
-idx = range(73)
+# idx = range(73)
+
+idx = range(160, 200)
 
 # calib 200317
 cam_params = {
@@ -33,7 +36,8 @@ cam_params = {
 # }
 
 for i in tqdm(idx):
-    img_depth = cv2.imread(DIR + 'rec_ajusted/depth{:03d}.bmp'.format(i), -1)
+    img_depth = cv2.imread(DIR + 'gt/{:05d}.bmp'.format(i), -1)
     depth = depth_tools.unpack_bmp_bgra_to_float(img_depth)
+    depth = tool.gaussian_filter(depth, 4)
     xyz_depth = depth_tools.convert_depth_to_coords(depth, cam_params)
-    depth_tools.dump_ply(DIR + 'ply_rec/rec{:03d}.ply'.format(i), xyz_depth.reshape(-1, 3).tolist())
+    depth_tools.dump_ply(DIR + 'ply_gt/{:05d}.ply'.format(i), xyz_depth.reshape(-1, 3).tolist())

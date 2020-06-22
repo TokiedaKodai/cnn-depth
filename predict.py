@@ -37,6 +37,8 @@ epoch_num = int(epoch_num)
 # normalization
 is_shading_norm = True
 # is_shading_norm = False
+is_difference_norm = True
+is_difference_norm = False
 
 # parameters
 depth_threshold = 0.2
@@ -45,7 +47,7 @@ difference_threshold = 0.005
 # difference_threshold = 0.003
 patch_remove = 0.5
 difference_scaling = 100
-# difference_scaling = 10
+# difference_scaling = 1
 
 # input
 is_input_depth = True
@@ -82,7 +84,7 @@ elif data_type is '2':
 
 # save predict depth PLY file
 is_save_ply = True
-is_save_ply = False
+# is_save_ply = False
 
 is_masked_ply = True
 
@@ -98,13 +100,13 @@ is_pred_ajust = False
 
 # select from val loss
 is_select_val = True
-# is_select_val = False
+is_select_val = False
 
 is_pred_reverse = True
-# is_pred_reverse = False
+is_pred_reverse = False
 
 is_pred_smooth = True
-# is_pred_smooth = False
+is_pred_smooth = False
 
 if is_predict_norm:
     predict_dir += '_norm'
@@ -151,7 +153,7 @@ elif data_type is '2':
 save_ply_range = test_range
 
 save_img_range = test_range
-
+# save_img_range = []
 
 vmin, vmax = (0.8, 1.4)
 vm_range = 0.05
@@ -232,8 +234,8 @@ def main():
         df_select = df_select[df_select.index%save_period==0]
         min_loss = df_select.min()
         idx_min_loss = df_select.idxmin()
-        # model.load_weights(out_dir + '/model/model-%03d.hdf5'%idx_min_loss)
-        model.load_weights(out_dir + '/model/model-best.hdf5')
+        model.load_weights(out_dir + '/model/model-%03d.hdf5'%idx_min_loss)
+        # model.load_weights(out_dir + '/model/model-best.hdf5')
     else:
         model.load_weights(out_dir + '/model-final.hdf5')
     
@@ -475,6 +477,9 @@ def main():
         # scale
         predict_depth /= difference_scaling
         predict_masked /= difference_scaling
+
+        out_diff = predict_depth.copy() # save diff
+
         # predict normalization
         if is_predict_norm:
             mean_gt = np.sum(gt_diff) / mask_length
