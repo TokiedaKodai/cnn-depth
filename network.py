@@ -25,7 +25,8 @@ def build_unet_model(batch_shape,
                     ch_num,
                     drop_rate=0.1,
                     transfer_learn=False,
-                    lr=0.001
+                    lr=0.001,
+                    scaling=1
                     ):
     def encode_block(x, ch):
         def base_block(x):
@@ -82,6 +83,8 @@ def build_unet_model(batch_shape,
     def mean_squared_error_with_mask(y_true, y_pred):
         difference = y_true[:, :, :, 0]
         mask = y_true[:, :, :, 1]
+
+        difference *= scaling
 
         valid_length = K.sum(mask)
         err = K.sum(K.square(difference - y_pred[:, :, :, 0]) * mask) # MSE

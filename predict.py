@@ -46,8 +46,9 @@ depth_threshold = 0.2
 difference_threshold = 0.005
 # difference_threshold = 0.003
 patch_remove = 0.5
-difference_scaling = 100
-# difference_scaling = 1
+difference_scaling = 1
+# difference_scaling = 100
+difference_scaling = 1000
 
 # input
 is_input_depth = True
@@ -84,7 +85,7 @@ elif data_type is '2':
 
 # save predict depth PLY file
 is_save_ply = True
-# is_save_ply = False
+is_save_ply = False
 
 is_masked_ply = True
 
@@ -93,7 +94,7 @@ is_save_diff = False
 
 # predict normalization
 is_predict_norm = True
-# is_predict_norm = False
+is_predict_norm = False
 
 is_pred_ajust = True
 is_pred_ajust = False

@@ -27,12 +27,23 @@ REM python predict.py vaug_half_x4_dif-no-norm_lr0001 50 1
 REM python train.py vaug_half_x4_dif-norm 0 0 50 7 10
 REM python predict.py vaug_half_x4_dif-norm 50 1
 
-python train.py vaug_half_x4_dif-norm 0 1 150 7 10
-python predict.py vaug_half_x4_dif-norm 150 1
+REM python train.py vaug_half_x4_dif-norm 0 1 150 7 10
+REM python predict.py vaug_half_x4_dif-norm 150 1
 
-python train.py vaug_half_x4_dif-norm 0 1 200 7 10
-python predict.py vaug_half_x4_dif-norm 200 1
+REM python train.py vaug_half_x4_dif-norm 0 1 200 7 10
+REM python predict.py vaug_half_x4_dif-norm 200 1
 
 
 REM python train.py vaug_half_x4_dif-norm_lr01 0 0 50 7 10
 REM python predict.py vaug_half_x4_dif-norm_lr01 50 1
+
+
+
+REM python train.py vaug_half_x4_scale-std 0 0 50 7 10
+REM python predict_2.py vaug_half_x4_scale-std 50 1
+
+python train.py vaug_half_x4_scale-std 0 1 150 7 10
+python predict_2.py vaug_half_x4_scale-std 150 1
+
+python train.py vaug_half_x4_scale-std 0 1 200 7 10
+python predict_2.py vaug_half_x4_scale-std 200 1

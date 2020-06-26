@@ -44,8 +44,9 @@ depth_threshold = 0.2
 difference_threshold = 0.005
 difference_threshold = 0.01
 patch_remove = 0.5
-# difference_scaling = 100
 difference_scaling = 1
+# difference_scaling = 100
+difference_scaling = 1000
 
 # input
 is_input_depth = True
@@ -75,9 +76,9 @@ if data_type is '0':
 elif data_type is '1':
     src_dir = '../data/render'
     # src_dir = '../data/render_no-tilt'
-    predict_dir = out_dir + '/predict2_{}_vloss'.format(epoch_num)
-    # data_num = 100
-    data_num = 200
+    predict_dir = out_dir + '/predict2_{}_vloss_test'.format(epoch_num)
+    data_num = 1
+    # data_num = 200
 elif data_type is '2':
     src_dir = '../data/real'
     predict_dir = out_dir + '/predict_{}_real'.format(epoch_num)
@@ -95,14 +96,14 @@ is_save_diff = False
 
 # predict normalization
 is_predict_norm = True
-# is_predict_norm = False
+is_predict_norm = False
 
 is_pred_ajust = True
 is_pred_ajust = False
 
 # select from val loss
 is_select_val = True
-# is_select_val = False
+is_select_val = False
 
 # Reverse #############################
 is_pred_reverse = True
@@ -374,7 +375,7 @@ def main():
         top_coords = range(b_top, img_shape[0], b_h)
         left_coords = range(b_left, img_shape[1], b_w)
 
-        # add training data
+        # add test data
         x_test = []
         for top, left in product(top_coords, left_coords):
 
@@ -391,6 +392,7 @@ def main():
 
         # predict
         x_test = np.array(x_test)[:]
+        print(x_test.shape)
         predict = model.predict(x_test, batch_size=1)  # w/o denormalization
         # predict = model.predict(
         #     x_test, batch_size=1) * norm_factor  # w/ denormalization

@@ -133,7 +133,7 @@ is_input_frame = True
 is_shading_norm = True
 # is_shading_norm = False
 is_difference_norm = True
-# is_difference_norm = False
+is_difference_norm = False
 
 batch_shape = (120, 120)
 batch_tl = (0, 0)  # top, left
@@ -149,10 +149,13 @@ val_rate = 0.3
 verbose = 1
 # verbose = 0
 
+train_std = 0.0019195375434992092
+
 # difference_scaling = 100
-# difference_scaling = 10
-difference_scaling = 1
+# difference_scaling = 1000
+# difference_scaling = 1
 # difference_scaling = int(scale)
+difference_scaling = 1 / train_std
 
 # augmentation
 is_augment = True
@@ -400,10 +403,14 @@ def prepare_data(data_idx_range):
                 np.abs(difference) < difference_threshold,
                 is_gt_available)
         mask = is_depth_close.astype(np.float32)
+        length = np.sum(mask)
+
+        # mean_difference = np.sum(difference * mask) / length
+        # difference = (difference - mean_difference) * mask
 
         if is_difference_norm:
-            mean_difference = np.sum(difference * mask) / np.sum(mask)
-            var_difference = np.sum(np.square((difference - mean_difference)*mask)) / np.sum(mask)
+            mean_difference = np.sum(difference * mask) / length
+            var_difference = np.sum(np.square((difference - mean_difference)*mask)) / length
             std_difference = np.sqrt(var_difference)
             difference = (difference - mean_difference) / std_difference
 
@@ -486,7 +493,8 @@ def main():
             # decay=decay,
             drop_rate=dropout_rate,
             transfer_learn=is_transfer_learning,
-            lr=learning_rate
+            lr=learning_rate,
+            scaling=difference_scaling
             )
     elif net_type is '1':
         model = network.build_resnet_model(
