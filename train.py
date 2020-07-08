@@ -39,6 +39,7 @@ _, out_local, learn_type, start, epoch_num, augment_type, dropout = argv
 #     learning_rate = 0.00001
 
 learning_rate = 0.001
+learning_rate = 0.0001
 
 # Transfer Learning
 is_transfer_learning = False
@@ -69,7 +70,8 @@ os.chdir(os.path.dirname(os.path.abspath(__file__))) #set currenct dir
 if is_transfer_learning or is_finetune:
     src_dir = '../data/input_200318'
 else:
-    src_dir = '../data/render'
+    # src_dir = '../data/render'
+    src_dir = '../data/render_wave1'
 
 # src_dir = '../data/render_no-tilt'
 
@@ -107,11 +109,12 @@ if is_transfer_learning or is_finetune:
     data_idx_range = [0, 1, 3, 6, 40, 41, 42, 43, 48, 49, 50, 51]
 else:
     data_idx_range = range(160)
+    # data_idx_range = range(16)
 
 
 # parameters
 depth_threshold = 0.2
-difference_threshold = 0.1
+difference_threshold = 0.01
 # difference_threshold = 0.005
 # difference_threshold = 0.003
 patch_remove = 0.5
@@ -132,39 +135,42 @@ is_input_frame = True
 # normalization
 is_shading_norm = True
 # is_shading_norm = False
-is_difference_norm = True
-is_difference_norm = False
+is_difference_norm = True # Difference Normalization
+# is_difference_norm = False
 
 batch_shape = (120, 120)
+# batch_shape = (150, 150)
+# batch_shape = (60, 60)
 batch_tl = (0, 0)  # top, left
 
 train_batch_size = 64
 # train_batch_size = 100
 # train_batch_size = 128
+# train_batch_size = 16
 
 # val_rate = 0.1
 val_rate = 0.3
 
 # progress bar
 verbose = 1
-# verbose = 0
+# verbose = 2
 
 train_std = 0.0019195375434992092
 
 # difference_scaling = 100
 # difference_scaling = 1000
-# difference_scaling = 1
+difference_scaling = 1
 # difference_scaling = int(scale)
-difference_scaling = 1 / train_std
+# difference_scaling = 1 / train_std # Scale by SD
 
 # augmentation
 is_augment = True
 if augment_type == '0':
     is_augment = False
-# augment_rate = 1
-augment_rate = 4
-# augment_val_rate = 1
-augment_val_rate = 4
+augment_rate = 1
+# augment_rate = 4
+augment_val_rate = 1
+# augment_val_rate = 4
 
 shift_max = 0.1
 # shift_max = 0.2
@@ -398,10 +404,10 @@ def prepare_data(data_idx_range):
         # difference
         difference = depth_gt - depth_gap
         # mask
-        is_gt_available = depth_gt > depth_thre
+        is_gap_available = depth_gap > depth_thre
         is_depth_close = np.logical_and(
                 np.abs(difference) < difference_threshold,
-                is_gt_available)
+                is_gap_available)
         mask = is_depth_close.astype(np.float32)
         length = np.sum(mask)
 
@@ -414,7 +420,9 @@ def prepare_data(data_idx_range):
             std_difference = np.sqrt(var_difference)
             difference = (difference - mean_difference) / std_difference
 
-        gt = np.dstack([difference, mask])
+        # gt = np.dstack([difference, mask])
+        # gt = np.dstack([difference])
+        gt = np.dstack([difference, depth_gap])
 
         # clip batches
         b_top, b_left = batch_tl
@@ -426,8 +434,9 @@ def prepare_data(data_idx_range):
         for top, left in product(top_coords, left_coords):
             batch_train = clip_batch(bgrd, (top, left), batch_shape)
             batch_gt = clip_batch(gt, (top, left), batch_shape)
+            batch_mask = clip_batch(mask, (top, left), batch_shape)
 
-            batch_mask = batch_gt[:, :, 1]
+            # batch_mask = batch_gt[:, :, 1]
 
             # do not add batch if not close ################
             if np.sum(batch_mask) < (b_h * b_w * patch_remove):

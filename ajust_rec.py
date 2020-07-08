@@ -6,7 +6,7 @@ from tqdm import tqdm
 DIR = '../'
 # DIR = 'C:/Users/Kodai Tokieda/Desktop/PhotometricAugmentation/PhotometricAugmentation/procam_rasterizer/'
 # data_dir = DIR + 'data/input_200317/'
-data_dir = DIR + 'data/render/'
+data_dir = DIR + 'data/render_wave1/'
 # data_dir = DIR + 'render/'
 rec_dir = data_dir + 'rec_ori/'
 gt_dir = data_dir + 'gt/'

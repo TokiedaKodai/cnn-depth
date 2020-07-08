@@ -44,9 +44,14 @@ depth_threshold = 0.2
 difference_threshold = 0.005
 difference_threshold = 0.01
 patch_remove = 0.5
-difference_scaling = 1
+
+train_std = 0.0019195375434992092
+
 # difference_scaling = 100
-difference_scaling = 1000
+# difference_scaling = 1000
+difference_scaling = 1
+# difference_scaling = int(scale)
+# difference_scaling = 1 / train_std # Scale by SD
 
 # input
 is_input_depth = True
@@ -74,11 +79,11 @@ if data_type is '0':
     # predict_dir = out_dir + '/predict_{}_trans'.format(epoch_num)
     data_num = 68
 elif data_type is '1':
-    src_dir = '../data/render'
+    # src_dir = '../data/render'
+    src_dir = '../data/render_wave1'
     # src_dir = '../data/render_no-tilt'
-    predict_dir = out_dir + '/predict2_{}_vloss_test'.format(epoch_num)
-    data_num = 1
-    # data_num = 200
+    predict_dir = out_dir + '/predict_{}'.format(epoch_num)
+    data_num = 200
 elif data_type is '2':
     src_dir = '../data/real'
     predict_dir = out_dir + '/predict_{}_real'.format(epoch_num)
@@ -95,8 +100,8 @@ is_save_diff = True
 is_save_diff = False
 
 # predict normalization
-is_predict_norm = True
-is_predict_norm = False
+is_predict_norm = True # Difference Normalization
+# is_predict_norm = False
 
 is_pred_ajust = True
 is_pred_ajust = False
@@ -104,6 +109,10 @@ is_pred_ajust = False
 # select from val loss
 is_select_val = True
 is_select_val = False
+
+# select minimum loss model
+is_select_min_loss_model = True
+is_select_min_loss_model = False
 
 # Reverse #############################
 is_pred_reverse = True
@@ -249,9 +258,6 @@ def main():
         df = df_log['loss']
     
     df.index = df.index + 1
-    # select minimum loss model
-    is_select_min_loss_model = True
-    # is_select_min_loss_model = False
     if is_select_min_loss_model:
         df_select = df[df.index>epoch_num-select_range]
         df_select = df_select[df_select.index<=epoch_num]
@@ -392,7 +398,6 @@ def main():
 
         # predict
         x_test = np.array(x_test)[:]
-        print(x_test.shape)
         predict = model.predict(x_test, batch_size=1)  # w/o denormalization
         # predict = model.predict(
         #     x_test, batch_size=1) * norm_factor  # w/ denormalization

@@ -261,7 +261,8 @@ def main():
 
     loss_str = 'epoch,loss,val_loss\n'
 
-    for epoch in tqdm(range(1, epoch_num + 1)):
+    # for epoch in tqdm(range(1, epoch_num + 1)):
+    for epoch in tqdm(range(epoch_num, epoch_num + 1)):
         model.load_weights(out_dir + '/model/model-%03d.hdf5'%epoch)
         loss_str += str(epoch) + ','
 
