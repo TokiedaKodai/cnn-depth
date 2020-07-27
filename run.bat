@@ -3,23 +3,26 @@ REM timeout /t 100 > nul
 REM shutdown -s -t 300
 
 
-REM python train.py wave1_scale-std 0 0 200 7 10
-REM python predict_2.py wave1_scale-std 200 1
-
-REM python train.py wave1_scale-std 0 1 400 7 10
-REM python predict_2.py wave1_scale-std 400 1
-
+REM python train.py wave1-norm_dif-norm_no-aug 0 0 200 0 10
+REM python predict_2.py wave1-norm_dif-norm_no-aug 200 1
+REM python predict_2.py wave1-norm_dif-norm_no-aug 200 0
+REM python predict_2.py wave1-norm_dif-norm_no-aug 200 2
 
 
-REM python train.py wave1_dif-norm 0 0 200 7 10
-REM python predict_2.py wave1_dif-norm 200 1
+REM python train.py wave1-norm-direct_dif-norm_no-aug_TL 1 1 250 0 10
+REM python predict_2.py wave1-norm-direct_dif-norm_no-aug_TL 250 0
+REM python predict_2.py wave1-norm-direct_dif-norm_no-aug_TL 250 2
 
-REM python train.py wave1_dif-norm 0 1 400 7 10
-REM python predict_2.py wave1_dif-norm 400 1
+REM python train.py wave1-norm-direct_dif-norm_no-aug_FT 2 1 250 0 10
+REM python predict_2.py wave1-norm-direct_dif-norm_no-aug_FT 250 0
+REM python predict_2.py wave1-norm-direct_dif-norm_no-aug_FT 250 2
 
 
-python train.py wave1_dif-norm_lr0001 0 0 200 7 10
-python predict_2.py wave1_dif-norm_lr0001 200 1
 
-python train.py wave1_dif-norm_lr0001 0 1 400 7 10
-python predict_2.py wave1_dif-norm_lr0001 400 1
+REM python train.py wave1-norm-direct_dif-norm_no-aug_TL 1 1 400 0 10
+python predict_2.py wave1-norm-direct_dif-norm_no-aug_TL 400 0
+python predict_2.py wave1-norm-direct_dif-norm_no-aug_TL 400 2
+
+REM python train.py wave1-norm-direct_dif-norm_no-aug_FT 2 1 400 0 10
+python predict_2.py wave1-norm-direct_dif-norm_no-aug_FT 400 0
+python predict_2.py wave1-norm-direct_dif-norm_no-aug_FT 400 2

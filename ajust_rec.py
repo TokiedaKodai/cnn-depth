@@ -6,10 +6,12 @@ from tqdm import tqdm
 DIR = '../'
 # DIR = 'C:/Users/Kodai Tokieda/Desktop/PhotometricAugmentation/PhotometricAugmentation/procam_rasterizer/'
 # data_dir = DIR + 'data/input_200317/'
-data_dir = DIR + 'data/render_wave1/'
+data_dir = DIR + 'data/render/'
 # data_dir = DIR + 'render/'
 rec_dir = data_dir + 'rec_ori/'
 gt_dir = data_dir + 'gt/'
+
+data_num = 200
 
 # calib 200317
 cam_params = {
@@ -31,7 +33,7 @@ cam_params = {
 depth_threshold = 0.2
 difference_threshold = 0.01
 
-data_idx_range = range(200)
+data_idx_range = range(data_num)
 
 for idx in tqdm(data_idx_range):
     img_gt = cv2.imread(gt_dir + '{:05d}.bmp'.format(idx), -1)

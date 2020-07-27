@@ -45,7 +45,10 @@ difference_threshold = 0.005
 difference_threshold = 0.01
 patch_remove = 0.5
 
-train_std = 0.0019195375434992092
+# train_std = 0.0019195375434992092
+
+train_std = 0.0014782568217017 # 1 wave
+
 
 # difference_scaling = 100
 # difference_scaling = 1000
@@ -67,6 +70,7 @@ select_range = epoch_num
 
 mask_edge_size = 4
 mask_edge_size = 2
+mask_edge_size = 1
 
 #InputData
 # src_dir = '../data/input_200201'
@@ -79,11 +83,21 @@ if data_type is '0':
     # predict_dir = out_dir + '/predict_{}_trans'.format(epoch_num)
     data_num = 68
 elif data_type is '1':
-    # src_dir = '../data/render'
+    src_dir = '../data/render'
     src_dir = '../data/render_wave1'
-    # src_dir = '../data/render_no-tilt'
+    src_dir = '../data/render_wave1-norm'
+    src_dir = '../data/render_wave1-norm-2'
+    src_dir = '../data/render_wave1-norm_direct'
+    # src_dir = '../data/render_wave1-norm_400'
+    # src_dir = '../data/render_wave2'
+    src_dir = '../data/render_wave2-norm'
+    # src_dir = '../data/render_wave2-norm_direct'
+    # src_dir = '../data/render_wave2_bias'
+    # src_dir = '../data/render_wave3'
     predict_dir = out_dir + '/predict_{}'.format(epoch_num)
+    data_num = 100
     data_num = 200
+    # data_num = 400
 elif data_type is '2':
     src_dir = '../data/real'
     predict_dir = out_dir + '/predict_{}_real'.format(epoch_num)
@@ -99,6 +113,9 @@ is_masked_ply = True
 is_save_diff = True
 is_save_diff = False
 
+is_save_depth_img = True
+is_save_depth_img = False
+
 # predict normalization
 is_predict_norm = True # Difference Normalization
 # is_predict_norm = False
@@ -108,7 +125,7 @@ is_pred_ajust = False
 
 # select from val loss
 is_select_val = True
-is_select_val = False
+# is_select_val = False
 
 # select minimum loss model
 is_select_min_loss_model = True
@@ -116,13 +133,13 @@ is_select_min_loss_model = False
 
 # Reverse #############################
 is_pred_reverse = True
-is_pred_reverse = False
+# is_pred_reverse = False
 
 is_pred_pix_reverse = True
-is_pred_pix_reverse = False
+# is_pred_pix_reverse = False
 
 is_reverse_threshold = True
-is_reverse_threshold = False
+# is_reverse_threshold = False
 
 r_thre = 0.002
 #######################################
@@ -143,6 +160,15 @@ if is_pred_pix_reverse:
 if is_reverse_threshold:
     predict_dir += '_thre=' + str(r_thre)
 
+
+if is_select_val:
+    predict_dir += '_vloss'
+else:
+    predict_dir += '_tloss'
+
+if is_select_min_loss_model:
+    predict_dir += '_min'
+
 data_idx_range = list(range(data_num))
 
 '''
@@ -161,8 +187,9 @@ if data_type is '0':
     data_idx_range = [0, 1, 3, 6, 16, 17, 19, 22]
     data_idx_range.extend(list(range(40, 56)))
 elif data_type is '1':
-    # test_range = list(range(80, 100))
+    test_range = list(range(80, 100))
     test_range = list(range(160, 200))
+    # test_range = list(range(320, 400))
 elif data_type is '2':
     test_range = list(range(9))
 
@@ -176,7 +203,9 @@ if data_type is '0':
 
     train_range = [0, 1, 3, 6, 40, 41, 42, 43, 48, 49, 50, 51]
 elif data_type is '1':
+    train_range = list(range(80))
     train_range = list(range(160))
+    # train_range = list(range(320))
 elif data_type is '2':
     train_range = list()
 
@@ -267,7 +296,8 @@ def main():
         model.load_weights(out_dir + '/model/model-%03d.hdf5'%idx_min_loss)
         # model.load_weights(out_dir + '/model/model-best.hdf5')
     else:
-        model.load_weights(out_dir + '/model-final.hdf5')
+        # model.load_weights(out_dir + '/model-final.hdf5')
+        model.load_weights(out_dir + '/model/model-%03d.hdf5'%epoch_num)
     
     # loss graph
     lossgraph_dir = predict_dir + '/loss_graph'
@@ -344,7 +374,7 @@ def main():
         depth_gap *= mask_shading
 
         if is_shading_norm: # shading norm : mean 0, var 1
-            is_shading_available = shading > 16.0
+            is_shading_available = shading > 8.0#16.0
             mask_shading = is_shading_available * 1.0
             mean_shading = np.sum(shading*mask_shading) / np.sum(mask_shading)
             var_shading = np.sum(np.square((shading - mean_shading)*mask_shading)) / np.sum(mask_shading)
@@ -632,9 +662,10 @@ def main():
         depth_loss = depth_MAE
 
         # save predicted depth
-        if test_idx in save_img_range:
-            predict_bmp = depth_tools.pack_float_to_bmp_bgra(predict_masked)
-            cv2.imwrite(predict_dir + '/predict-{:03d}.bmp'.format(test_idx), predict_bmp)
+        if is_save_depth_img:
+            if test_idx in save_img_range:
+                predict_bmp = depth_tools.pack_float_to_bmp_bgra(predict_masked)
+                cv2.imwrite(predict_dir + '/predict-{:03d}.bmp'.format(test_idx), predict_bmp)
 
         # save ply
         if is_save_ply:
@@ -697,7 +728,11 @@ def main():
 
             # misc
             # ax_misc0.imshow(shading_bgr[:, :, ::-1])
-            ax_misc0.imshow(np.dstack([shading_gray, shading_gray, shading_gray]))
+            # ax_misc0.imshow(np.dstack([shading_gray, shading_gray, shading_gray]))
+
+            shading_norm_img = (shading[:, :] * 64 + 128)
+            shading_norm_img = np.where(shading_norm_img < 0, 0, shading_norm_img).astype(np.uint8)
+            ax_misc0.imshow(np.dstack([shading_norm_img, shading_norm_img, shading_norm_img]))
 
             # error
             vmin_e, vmax_e = 0, vm_e_range

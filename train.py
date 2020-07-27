@@ -38,8 +38,8 @@ _, out_local, learn_type, start, epoch_num, augment_type, dropout = argv
 # elif learning_rate is '2':
 #     learning_rate = 0.00001
 
-learning_rate = 0.001
-learning_rate = 0.0001
+learning_rate = 0.001 # Default
+# learning_rate = 0.0001
 
 # Transfer Learning
 is_transfer_learning = False
@@ -70,8 +70,17 @@ os.chdir(os.path.dirname(os.path.abspath(__file__))) #set currenct dir
 if is_transfer_learning or is_finetune:
     src_dir = '../data/input_200318'
 else:
-    # src_dir = '../data/render'
+    src_dir = '../data/render'
     src_dir = '../data/render_wave1'
+    src_dir = '../data/render_wave1-norm'
+    src_dir = '../data/render_wave1-norm-2'
+    src_dir = '../data/render_wave1-norm_direct'
+    # src_dir = '../data/render_wave1-norm_400'
+    # src_dir = '../data/render_wave2'
+    src_dir = '../data/render_wave2-norm'
+    # src_dir = '../data/render_wave2-norm_direct'
+    # src_dir = '../data/render_wave2_bias'
+    # src_dir = '../data/render_wave3'
 
 # src_dir = '../data/render_no-tilt'
 
@@ -108,8 +117,10 @@ if is_transfer_learning or is_finetune:
 
     data_idx_range = [0, 1, 3, 6, 40, 41, 42, 43, 48, 49, 50, 51]
 else:
+    data_idx_range = range(16)
+    # data_idx_range = range(80)
     data_idx_range = range(160)
-    # data_idx_range = range(16)
+    # data_idx_range = range(320)
 
 
 # parameters
@@ -133,20 +144,15 @@ is_input_depth = True
 is_input_frame = True
 
 # normalization
-is_shading_norm = True
+is_shading_norm = True # Shading Normalization
 # is_shading_norm = False
 is_difference_norm = True # Difference Normalization
-# is_difference_norm = False
+is_difference_norm = False
 
 batch_shape = (120, 120)
-# batch_shape = (150, 150)
-# batch_shape = (60, 60)
 batch_tl = (0, 0)  # top, left
 
 train_batch_size = 64
-# train_batch_size = 100
-# train_batch_size = 128
-# train_batch_size = 16
 
 # val_rate = 0.1
 val_rate = 0.3
@@ -155,7 +161,11 @@ val_rate = 0.3
 verbose = 1
 # verbose = 2
 
-train_std = 0.0019195375434992092
+# train_std = 0.0019195375434992092
+
+train_std = 0.0014782568217017 # 1 wave
+
+
 
 # difference_scaling = 100
 # difference_scaling = 1000
@@ -175,7 +185,8 @@ augment_val_rate = 1
 shift_max = 0.1
 # shift_max = 0.2
 # shift_max = 0.5
-rotate_max = 45
+rotate_max = 10
+# rotate_max = 45
 # rotate_max = 90
 # zoom_range=[0.5, 1.5]
 zoom_range=[0.9, 1.1]
@@ -270,8 +281,8 @@ if is_augment:
     y_datagen = ImageDataGenerator(**datagen_args)
     # x_datagen = ImageDataGenerator() # train loss no-aug
     # y_datagen = ImageDataGenerator() # train loss no-aug
-    x_val_datagen = ImageDataGenerator(**datagen_args) # val loss aug
-    y_val_datagen = ImageDataGenerator(**datagen_args) # val loss aug
+    x_val_datagen = ImageDataGenerator(**datagen_args) # val aug
+    y_val_datagen = ImageDataGenerator(**datagen_args) # val aug
     # x_val_datagen = ImageDataGenerator()
     # y_val_datagen = ImageDataGenerator()
     seed_train = 1
@@ -310,11 +321,11 @@ else:
 
 def prepare_data(data_idx_range):
     def clip_batch(img, top_left, size):
-        # t, l, h, w = *top_left, *size
-        t = top_left[0]
-        l = top_left[1]
-        h = size[0]
-        w = size[1]
+        t, l, h, w = *top_left, *size
+        # t = top_left[0]
+        # l = top_left[1]
+        # h = size[0]
+        # w = size[1]
         return img[t:t + h, l:l + w]
 
     if is_transfer_learning or is_finetune:
