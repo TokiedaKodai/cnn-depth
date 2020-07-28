@@ -73,11 +73,11 @@ else:
     src_dir = '../data/render'
     src_dir = '../data/render_wave1'
     src_dir = '../data/render_wave1-norm'
-    src_dir = '../data/render_wave1-norm-2'
-    src_dir = '../data/render_wave1-norm_direct'
+    # src_dir = '../data/render_wave1-norm-2'
+    # src_dir = '../data/render_wave1-norm_direct'
     # src_dir = '../data/render_wave1-norm_400'
     # src_dir = '../data/render_wave2'
-    src_dir = '../data/render_wave2-norm'
+    # src_dir = '../data/render_wave2-norm'
     # src_dir = '../data/render_wave2-norm_direct'
     # src_dir = '../data/render_wave2_bias'
     # src_dir = '../data/render_wave3'
@@ -147,7 +147,7 @@ is_input_frame = True
 is_shading_norm = True # Shading Normalization
 # is_shading_norm = False
 is_difference_norm = True # Difference Normalization
-is_difference_norm = False
+# is_difference_norm = False
 
 batch_shape = (120, 120)
 batch_tl = (0, 0)  # top, left
@@ -469,8 +469,12 @@ def main():
     print('y train data:', y_data.shape)
 
     if is_augment:
-        x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, 
-                                                        test_size=val_rate, shuffle=False)
+        if is_transfer_learning or is_finetune:
+            x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, 
+                                                            test_size=val_rate, shuffle=True)
+        else:
+            x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, 
+                                                            test_size=val_rate, shuffle=False)
     else:
         x_train, y_train = x_data, y_data
 

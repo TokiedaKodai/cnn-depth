@@ -86,11 +86,11 @@ elif data_type is '1':
     src_dir = '../data/render'
     src_dir = '../data/render_wave1'
     src_dir = '../data/render_wave1-norm'
-    src_dir = '../data/render_wave1-norm-2'
-    src_dir = '../data/render_wave1-norm_direct'
-    # src_dir = '../data/render_wave1-norm_400'
-    # src_dir = '../data/render_wave2'
-    src_dir = '../data/render_wave2-norm'
+    # src_dir = '../data/render_wave1-norm-2'
+    # src_dir = '../data/render_wave1-norm_direct'
+    # # src_dir = '../data/render_wave1-norm_400'
+    # # src_dir = '../data/render_wave2'
+    # src_dir = '../data/render_wave2-norm'
     # src_dir = '../data/render_wave2-norm_direct'
     # src_dir = '../data/render_wave2_bias'
     # src_dir = '../data/render_wave3'
@@ -132,16 +132,16 @@ is_select_min_loss_model = True
 is_select_min_loss_model = False
 
 # Reverse #############################
+is_pred_reverse = False
+is_pred_pix_reverse = False
+is_reverse_threshold = False
+
 is_pred_reverse = True
-# is_pred_reverse = False
-
 is_pred_pix_reverse = True
-# is_pred_pix_reverse = False
-
 is_reverse_threshold = True
-# is_reverse_threshold = False
 
 r_thre = 0.002
+r_thre = 0.001
 #######################################
 
 is_pred_smooth = True

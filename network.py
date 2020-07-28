@@ -22,6 +22,7 @@ is_drop_out = False
 
 depth_threshold = 0.2
 difference_threshold = 0.01
+difference_threshold = 10
 
 ''' U-Net '''
 def build_unet_model(batch_shape,
@@ -93,7 +94,7 @@ def build_unet_model(batch_shape,
 
         is_gap_available = depth_gap > depth_threshold
         # is_depth_close = difference < difference_threshold
-        is_depth_close = K.all(K.stack([difference < difference_threshold, 
+        is_depth_close = K.all(K.stack([K.abs(difference) < difference_threshold, 
                                         is_gap_available], axis=0), axis=0)
         mask = K.cast(is_depth_close, 'float32')
 
