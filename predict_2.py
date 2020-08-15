@@ -42,7 +42,7 @@ is_shading_norm = True
 depth_threshold = 0.2
 # difference_threshold = 0.1
 difference_threshold = 0.005
-difference_threshold = 0.01
+# difference_threshold = 0.01
 patch_remove = 0.5
 
 # train_std = 0.0019195375434992092
@@ -67,10 +67,14 @@ save_period = 1
 # select_range = save_period * 10
 select_range = epoch_num
 
-
-mask_edge_size = 4
-mask_edge_size = 2
+is_edge_crop = True
 mask_edge_size = 1
+# mask_edge_size = 2
+# mask_edge_size = 4
+# mask_edge_size = 8
+# mask_edge_size = 16
+# mask_edge_size = 32
+# mask_edge_size = 64
 
 #InputData
 # src_dir = '../data/input_200201'
@@ -86,6 +90,7 @@ elif data_type is '1':
     src_dir = '../data/render'
     src_dir = '../data/render_wave1'
     src_dir = '../data/render_wave1-norm'
+    # src_dir = '../data/render_wave1_board'
     # src_dir = '../data/render_wave1-norm-2'
     # src_dir = '../data/render_wave1-norm_direct'
     # # src_dir = '../data/render_wave1-norm_400'
@@ -97,11 +102,13 @@ elif data_type is '1':
     predict_dir = out_dir + '/predict_{}'.format(epoch_num)
     data_num = 100
     data_num = 200
+    # data_num = 240
     # data_num = 400
 elif data_type is '2':
     src_dir = '../data/real'
     predict_dir = out_dir + '/predict_{}_real'.format(epoch_num)
     data_num = 9
+    data_num = 20
 
 
 # save predict depth PLY file
@@ -138,7 +145,7 @@ is_reverse_threshold = False
 
 is_pred_reverse = True
 is_pred_pix_reverse = True
-is_reverse_threshold = True
+# is_reverse_threshold = True
 
 r_thre = 0.002
 r_thre = 0.001
@@ -159,7 +166,8 @@ if is_pred_pix_reverse:
     predict_dir += '_pix'
 if is_reverse_threshold:
     predict_dir += '_thre=' + str(r_thre)
-
+if is_edge_crop:
+    predict_dir += '_crop=' + str(mask_edge_size)
 
 if is_select_val:
     predict_dir += '_vloss'
@@ -184,14 +192,20 @@ if data_type is '0':
     # test_range.extend(list(range(56, 60))) # 56 - 60
 
     test_range = [16, 17, 19, 22, 44, 45, 46, 47, 52, 53, 54, 55]
+    test_range = list(range(40, 56))
+
     data_idx_range = [0, 1, 3, 6, 16, 17, 19, 22]
     data_idx_range.extend(list(range(40, 56)))
+
+    data_idx_range = list(range(56))
 elif data_type is '1':
     test_range = list(range(80, 100))
     test_range = list(range(160, 200))
+    # test_range = list(range(200, 240))
     # test_range = list(range(320, 400))
 elif data_type is '2':
     test_range = list(range(9))
+    test_range = list(range(20))
 
 # train data
 if data_type is '0':
@@ -202,9 +216,12 @@ if data_type is '0':
     train_range.extend(list(range(60, 68)))
 
     train_range = [0, 1, 3, 6, 40, 41, 42, 43, 48, 49, 50, 51]
+    train_range = [0, 1, 3, 6, 16, 17, 19, 22]
+    train_range = list(range(40))
 elif data_type is '1':
     train_range = list(range(80))
     train_range = list(range(160))
+    # train_range = list(range(200))
     # train_range = list(range(320))
 elif data_type is '2':
     train_range = list()
@@ -343,7 +360,8 @@ def main():
         elif data_type is '2':
             src_bgra = src_frame_dir + '/{:05d}.png'.format(test_idx)
             src_depth_gt = src_gt_dir + '/{:05d}.bmp'.format(test_idx)
-            src_shading = src_shading_dir + '/{:05d}.bmp'.format(test_idx)
+            # src_shading = src_shading_dir + '/{:05d}.bmp'.format(test_idx)
+            src_shading = src_shading_dir + '/{:05d}.png'.format(test_idx)
             src_depth_gap = src_rec_dir + '/{:05d}.bmp'.format(test_idx)
 
         # read images
@@ -457,27 +475,31 @@ def main():
         # mask = is_train_area * 1.0 # complement
 
         # delete mask edge
-        edge_size = mask_edge_size
-        mask_filter = np.zeros_like(mask)
-        for edge in range(1, edge_size):
-            edge_2 = edge * 2
-            mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[: b_h - edge_2, edge: b_w - edge]
-            mask *= mask_filter
-            mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[edge: b_h - edge, edge_2: ]
-            mask *= mask_filter
-            mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[edge_2: , edge: b_w - edge]
-            mask *= mask_filter
-            mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[edge: b_h - edge, : b_w - edge_2]
-            mask *= mask_filter
+        if is_edge_crop:
+            # kernel = np.ones((mask_edge_size, mask_edge_size), np.uint8)
+            # mask = cv2.erode(mask, kernel, iterations=1)
 
-            for i in range(2):
-                for j in range(2):
-                    mask_filter[
-                        edge * i: b_h - edge * (1 - i), edge * j: b_w - edge * (1 - j)
-                        ] = mask[
-                            edge * (1 - i): b_h - edge * i, edge * (1 - j): b_h - edge * j
-                            ]
-                    mask *= mask_filter
+            edge_size = mask_edge_size
+            mask_filter = np.zeros_like(mask)
+            for edge in range(1, edge_size):
+                edge_2 = edge * 2
+                mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[: b_h - edge_2, edge: b_w - edge]
+                mask *= mask_filter
+                mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[edge: b_h - edge, edge_2: ]
+                mask *= mask_filter
+                mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[edge_2: , edge: b_w - edge]
+                mask *= mask_filter
+                mask_filter[edge: b_h - edge, edge: b_w - edge] = mask[edge: b_h - edge, : b_w - edge_2]
+                mask *= mask_filter
+
+                for i in range(2):
+                    for j in range(2):
+                        mask_filter[
+                            edge * i: b_h - edge * (1 - i), edge * j: b_w - edge * (1 - j)
+                            ] = mask[
+                                edge * (1 - i): b_h - edge * i, edge * (1 - j): b_h - edge * j
+                                ]
+                        mask *= mask_filter
 
 
         mask_gt = is_gt_available * 1.0
@@ -728,11 +750,11 @@ def main():
 
             # misc
             # ax_misc0.imshow(shading_bgr[:, :, ::-1])
-            # ax_misc0.imshow(np.dstack([shading_gray, shading_gray, shading_gray]))
+            ax_misc0.imshow(np.dstack([shading_gray, shading_gray, shading_gray]))
 
-            shading_norm_img = (shading[:, :] * 64 + 128)
-            shading_norm_img = np.where(shading_norm_img < 0, 0, shading_norm_img).astype(np.uint8)
-            ax_misc0.imshow(np.dstack([shading_norm_img, shading_norm_img, shading_norm_img]))
+            # shading_norm_img = (shading[:, :] * 64 + 128)
+            # shading_norm_img = np.where(shading_norm_img < 0, 0, shading_norm_img).astype(np.uint8)
+            # ax_misc0.imshow(np.dstack([shading_norm_img, shading_norm_img, shading_norm_img]))
 
             # error
             vmin_e, vmax_e = 0, vm_e_range

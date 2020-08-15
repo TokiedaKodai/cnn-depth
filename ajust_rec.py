@@ -7,11 +7,13 @@ DIR = '../'
 # DIR = 'C:/Users/Kodai Tokieda/Desktop/PhotometricAugmentation/PhotometricAugmentation/procam_rasterizer/'
 # data_dir = DIR + 'data/input_200317/'
 data_dir = DIR + 'data/render/'
-# data_dir = DIR + 'render/'
+# data_dir = DIR + 'data/render_wave1-norm_direct/'
+data_dir = DIR + 'data/real/'
+
 rec_dir = data_dir + 'rec_ori/'
 gt_dir = data_dir + 'gt/'
 
-data_num = 200
+data_num = 20
 
 # calib 200317
 cam_params = {
@@ -37,10 +39,12 @@ data_idx_range = range(data_num)
 
 for idx in tqdm(data_idx_range):
     img_gt = cv2.imread(gt_dir + '{:05d}.bmp'.format(idx), -1)
-    img_rec = cv2.imread(rec_dir + '{:05d}.bmp'.format(idx), -1)
+    img_gt = img_gt[:1200, :1200, :]
+    img_rec = cv2.imread(rec_dir + '{:05d}.png'.format(idx), -1)
+    # img_rec = cv2.imread(rec_dir + '{:05d}.bmp'.format(idx), -1)
     depth_gt = depth_tools.unpack_bmp_bgra_to_float(img_gt)
-    # depth_rec = depth_tools.unpack_png_to_float(img_rec)
-    depth_rec = depth_tools.unpack_bmp_bgra_to_float(img_rec)
+    depth_rec = depth_tools.unpack_png_to_float(img_rec)
+    # depth_rec = depth_tools.unpack_bmp_bgra_to_float(img_rec)
 
     is_gt_available = depth_gt > depth_threshold
     is_depth_close = np.logical_and(

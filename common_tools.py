@@ -167,19 +167,19 @@ def gaussian_filter(image, distance, threshold=0.005):
     diameter = distance*2 + 1
     blur = cv2.GaussianBlur(image, (diameter, diameter), 0)
 
-    # cp.cuda.set_allocator(cp.cuda.MemoryPool().malloc)
-    # blur = cp.asarray(blur)
-    # img = cp.asarray(image)
+    cp.cuda.set_allocator(cp.cuda.MemoryPool().malloc)
+    blur = cp.asarray(blur)
+    img = cp.asarray(image)
     
-    # masked_blur = cp.where(cp.abs(blur - img) < threshold, blur, 0)
-    # masked_blur = np.where(np.abs(blur - image) < threshold, blur, 0)
+    masked_blur = cp.where(cp.abs(blur - img) < threshold, blur, 0)
+    masked_blur = np.where(np.abs(blur - image) < threshold, blur, 0)
 
-    # depth_threshold = 0.2
-    # is_gt_available= img > depth_threshold
-    # mask = is_gt_available * 1.0
-    # return cp.asnumpy(masked_blur * mask)
+    depth_threshold = 0.2
+    is_gt_available= img > depth_threshold
+    mask = is_gt_available * 1.0
+    return cp.asnumpy(masked_blur * mask)
     # return masked_blur
-    return blur
+    # return blur
 
 def euclid_filter(image, distance, grad=True):
     new_img = np.zeros_like(image)

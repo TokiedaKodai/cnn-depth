@@ -12,8 +12,9 @@ import os
 import random
 
 from keras.preprocessing.image import ImageDataGenerator
-from sklearn.model_selection import train_test_split
+from keras.utils import Sequence
 from keras.callbacks import CSVLogger, ModelCheckpoint, ReduceLROnPlateau
+from sklearn.model_selection import train_test_split
 
 import network
 
@@ -72,17 +73,9 @@ if is_transfer_learning or is_finetune:
 else:
     src_dir = '../data/render'
     src_dir = '../data/render_wave1'
-    src_dir = '../data/render_wave1-norm'
-    # src_dir = '../data/render_wave1-norm-2'
-    # src_dir = '../data/render_wave1-norm_direct'
-    # src_dir = '../data/render_wave1-norm_400'
-    # src_dir = '../data/render_wave2'
-    # src_dir = '../data/render_wave2-norm'
-    # src_dir = '../data/render_wave2-norm_direct'
-    # src_dir = '../data/render_wave2_bias'
-    # src_dir = '../data/render_wave3'
+    src_dir = '../data/render_wave1-board'
+    src_dir = '../data/render_wave2_1100'
 
-# src_dir = '../data/render_no-tilt'
 
 #RemoteOutput
 out_dir = 'output'
@@ -97,6 +90,8 @@ if is_local_train:
 # resume_from = None  # start new without resume
 # resume_from = 'auto'  # resume from latest model file
 # resume_from = ['output /model-final.hdf5', 5]   # [file, epoch_num]
+
+use_generator = True
 
 '''
 Test Data
@@ -116,11 +111,15 @@ if is_transfer_learning or is_finetune:
     # data_idx_range.extend(list(range(60, 68))) # 60 -67
 
     data_idx_range = [0, 1, 3, 6, 40, 41, 42, 43, 48, 49, 50, 51]
+    data_idx_range = [0, 1, 3, 6, 16, 17, 19, 22]
+    data_idx_range = range(40)
 else:
     data_idx_range = range(16)
-    # data_idx_range = range(80)
+    # # data_idx_range = range(80)
     data_idx_range = range(160)
+    # data_idx_range = range(200)
     # data_idx_range = range(320)
+    data_idx_range = range(1000)
 
 
 # parameters
@@ -183,14 +182,14 @@ augment_val_rate = 1
 # augment_val_rate = 4
 
 shift_max = 0.1
-# shift_max = 0.2
+shift_max = 0.2
 # shift_max = 0.5
 rotate_max = 10
-# rotate_max = 45
+rotate_max = 45
 # rotate_max = 90
 # zoom_range=[0.5, 1.5]
 zoom_range=[0.9, 1.1]
-# zoom_range=[0.8, 1.2]
+zoom_range=[0.8, 1.2]
 
 def augment_zoom(img):
     h, w, s = img.shape
@@ -319,7 +318,7 @@ else:
 #         yield tuple(result)
 
 
-def prepare_data(data_idx_range):
+def prepare_data(data_idx_range, return_size=False):
     def clip_batch(img, top_left, size):
         t, l, h, w = *top_left, *size
         # t = top_left[0]
@@ -341,10 +340,16 @@ def prepare_data(data_idx_range):
         src_rec_dir = src_dir + '/rec'
 
     # read data
-    print('loading data...')
+    # print('loading data...')
+    data_idx_range = list(data_idx_range)
     x_train = []
     y_train = []
-    for data_idx in tqdm(data_idx_range):
+    size = 0
+    # for data_idx in tqdm(data_idx_range):
+    for data_idx in data_idx_range:
+        if return_size:
+            print('{:04d} : {:04d} - {:04d}'.format(data_idx, data_idx_range[0], data_idx_range[-1]), end='\r')
+
         if is_transfer_learning or is_finetune:
             src_bgra = src_frame_dir + '/frame{:03d}.png'.format(data_idx)
             # src_depth_gap = src_rec_dir + '/depth{:03d}.png'.format(data_idx)
@@ -401,7 +406,6 @@ def prepare_data(data_idx_range):
         # depth_gap /= depth_gap.max()
         # depth_gt /= depth_gt.max()
 
-        depth_thre = depth_threshold
 
         # merge bgr + depth_gap
         if is_input_frame:
@@ -415,7 +419,7 @@ def prepare_data(data_idx_range):
         # difference
         difference = depth_gt - depth_gap
         # mask
-        is_gap_available = depth_gap > depth_thre
+        is_gap_available = depth_gap > depth_threshold
         is_depth_close = np.logical_and(
                 np.abs(difference) < difference_threshold,
                 is_gap_available)
@@ -452,34 +456,67 @@ def prepare_data(data_idx_range):
             # do not add batch if not close ################
             if np.sum(batch_mask) < (b_h * b_w * patch_remove):
                 continue
+            
+            if not return_size:
+                if is_input_depth or is_input_frame:
+                    x_train.append(batch_train)
+                else:
+                    # x_train.append(batch_train[:, :, 0].reshape((*batch_shape, 1)))
+                    x_train.append(batch_train[:, :, 0].reshape((batch_shape[0], batch_shape[1], 1)))
+                # y_train.append(batch_gt.reshape((*batch_shape, 2)))
+                y_train.append(batch_gt)
 
-            if is_input_depth or is_input_frame:
-                x_train.append(batch_train)
-            else:
-                # x_train.append(batch_train[:, :, 0].reshape((*batch_shape, 1)))
-                x_train.append(batch_train[:, :, 0].reshape((batch_shape[0], batch_shape[1], 1)))
-            # y_train.append(batch_gt.reshape((*batch_shape, 2)))
-            y_train.append(batch_gt)
-    return np.array(x_train), np.array(y_train), depth_thre
+    if return_size:
+        print('\n')
+        return size
+    else:
+        return np.array(x_train), np.array(y_train)
 
+
+class BatchGenerator(Sequence):
+    def __init__(self, data_range, batch_size=128):
+        self.length = prepare_data(data_range, return_size=True)
+        self.batch_size = batch_size
+        self.batches_per_epoch = int((self.length - 1) / batch_size) + 1
+
+    def __getitem__(self, idx):
+        batch_from = self.batch_size * idx
+        batch_to   = batch_from + self.batch_size
+
+        if batch_to > self.length:
+            batch_to = self.length
+
+        return prepare_data(range(batch_from, batch_to))
+
+    def __len__(self):
+        return self.batches_per_epoch
+
+    def on_epoch_end(self):
+        pass
+        
 
 def main():
-    x_data, y_data, depth_thre = prepare_data(data_idx_range)
-    print('x train data:', x_data.shape)
-    print('y train data:', y_data.shape)
-
-    if is_augment:
-        if is_transfer_learning or is_finetune:
-            x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, 
-                                                            test_size=val_rate, shuffle=True)
-        else:
-            x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, 
-                                                            test_size=val_rate, shuffle=False)
+    if use_generator:
+        train_generator = BatchGenerator(range(10))
+        val_generator = BatchGenerator(range(10, 14))
     else:
-        x_train, y_train = x_data, y_data
+        x_data, y_data = prepare_data(data_idx_range)
+        print('x train data:', x_data.shape)
+        print('y train data:', y_data.shape)
+        if is_augment:
+            if is_transfer_learning or is_finetune:
+                x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, 
+                                                                test_size=val_rate, shuffle=True)
+            else:
+                # x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, 
+                #                                                 test_size=val_rate, shuffle=False)
+                x_train, x_val, y_train, y_val = train_test_split(x_data, y_data, 
+                                                                test_size=val_rate, shuffle=True)
+        else:
+            x_train, y_train = x_data, y_data
 
-    # check training data
-    print('x_train length:', len(x_train))
+        # check training data
+        print('x_train length:', len(x_train))
 
     if is_augment:
         print('x_val length  :', len(x_val))
@@ -524,7 +561,7 @@ def main():
         model = network.build_resnet_model(
             batch_shape,
             ch_num,
-            depth_threshold=depth_thre,
+            depth_threshold=depth_threshold,
             difference_threshold=difference_threshold,
             drop_rate=dropout_rate,
             scaling=difference_scaling
@@ -533,7 +570,7 @@ def main():
         model = network.build_dense_resnet_model(
             batch_shape,
             ch_num,
-            depth_threshold=depth_thre,
+            depth_threshold=depth_threshold,
             difference_threshold=difference_threshold,
             drop_rate=dropout_rate
             )
@@ -591,29 +628,41 @@ def main():
                                     verbose=1)
 
     print('training')
-    if is_augment:
+    if use_generator:
         model.fit_generator(
             train_generator,
-            steps_per_epoch=len(x_train)*augment_rate / train_batch_size + 1,
+            steps_per_epoch=train_generator.batches_per_epoch,
             epochs=epoch_num,
             initial_epoch=initial_epoch,
             shuffle=True,
             callbacks=[model_save_cb, csv_logger_cb],
-            # callbacks=[model_save_cb, csv_logger_cb, reduce_lr],
             validation_data=val_generator,
-            validation_steps=len(x_val)*augment_val_rate / train_batch_size + 1,
+            validation_steps=val_generator.batches_per_epoch,
             verbose=verbose)
     else:
-        model.fit(
-            x_train,
-            y_train,
-            epochs=epoch_num,
-            batch_size=train_batch_size,
-            initial_epoch=initial_epoch,
-            shuffle=True,
-            validation_split=val_rate,
-            callbacks=[model_save_cb, csv_logger_cb],
-            verbose=verbose)
+        if is_augment:
+            model.fit_generator(
+                train_generator,
+                steps_per_epoch=len(x_train)*augment_rate / train_batch_size + 1,
+                epochs=epoch_num,
+                initial_epoch=initial_epoch,
+                shuffle=True,
+                callbacks=[model_save_cb, csv_logger_cb],
+                # callbacks=[model_save_cb, csv_logger_cb, reduce_lr],
+                validation_data=val_generator,
+                validation_steps=len(x_val)*augment_val_rate / train_batch_size + 1,
+                verbose=verbose)
+        else:
+            model.fit(
+                x_train,
+                y_train,
+                epochs=epoch_num,
+                batch_size=train_batch_size,
+                initial_epoch=initial_epoch,
+                shuffle=True,
+                validation_split=val_rate,
+                callbacks=[model_save_cb, csv_logger_cb],
+                verbose=verbose)
 
     model.save_weights(out_dir + '/model-final.hdf5')
     # model.save_weights(model_dir + '/model-final.hdf5')
