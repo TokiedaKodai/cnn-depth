@@ -29,6 +29,7 @@ def build_unet_model(batch_shape,
                     ch_num,
                     drop_rate=0.1,
                     transfer_learn=False,
+                    transfer_encoder=False,
                     lr=0.001,
                     scaling=1
                     ):
@@ -109,6 +110,9 @@ def build_unet_model(batch_shape,
     # Transfer Learning
     if transfer_learn:
         for l in model.layers[:38]:
+            l.trainable = False
+    elif transfer_encoder:
+        for l in model.layers[38:]:
             l.trainable = False
 
     # adam = optimizers.Adam(lr=lr, decay=decay)
