@@ -77,8 +77,8 @@ def gen_graph(label, depth, list_pred, list_compares, comp_name, type_name='test
     plt.savefig(save_dir + 'errs_cmp{}_{}.pdf'.format(comp_name, error))
 
 def compare_error(dir_name, error='RMSE'):
-    for type_name in ['train', 'test']:
-    # for type_name in ['test']:
+    # for type_name in ['train', 'test']:
+    for type_name in ['test']:
         label, depth = get_index_depth(dir_name, type_name=type_name, error=error)
         pred = get_predict(dir_name, type_name=type_name, error=error)
         # gen_graph(label, depth, [pred], ['predict'], comp_name='', type_name=type_name, save_dir=dir_name)

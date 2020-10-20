@@ -98,12 +98,14 @@ elif data_type is '1':
     data_num = 200
     test_num = 40
     data_idx_range = list(range(data_num, data_num + test_num))
+    difference_threshold = 0.1
 elif data_type is '2':
     src_dir = '../data/render_wave2_1100'
     predict_dir = out_dir + '/predict_{}_2wave'.format(epoch_num)
     data_num = 1000
     test_num = 40
     data_idx_range = list(range(data_num, data_num + test_num))
+    difference_threshold = 0.1
 elif data_type is '3':
     src_dir = '../data/real'
     predict_dir = out_dir + '/predict_{}_real'.format(epoch_num)
@@ -131,6 +133,14 @@ is_predict_norm = True # Difference Normalization
 is_predict_norm_local = True # Difference Normalization Local
 # is_predict_norm_local = False
 norm_patch_size = 12
+# norm_patch_size = 24
+# norm_patch_size = 48
+is_norm_local_pix = False
+is_norm_local_pix = True
+norm_patch_size = 6
+# norm_patch_size = 12
+# norm_patch_size = 24
+# norm_patch_size = 48
 
 is_pred_ajust = True
 is_pred_ajust = False
@@ -147,10 +157,12 @@ is_select_min_loss_model = True
 is_pred_reverse = False
 is_pred_pix_reverse = False
 is_reverse_threshold = False
+is_pred_patch_inverse = False
 
-is_pred_reverse = True
-is_pred_pix_reverse = True
+# is_pred_reverse = True
+# is_pred_pix_reverse = True
 # is_reverse_threshold = True
+# is_pred_patch_inverse = True
 
 r_thre = 0.002
 r_thre = 0.001
@@ -162,15 +174,20 @@ is_pred_smooth = False
 if is_predict_norm:
     predict_dir += '_norm'
     if is_predict_norm_local:
-        predict_dir += '-local=' + str(norm_patch_size)
+        predict_dir += '-local'
+        if is_norm_local_pix:
+            predict_dir += '-pix'
+        predict_dir += '=' + str(norm_patch_size)
 if is_pred_ajust:
     predict_dir += '_ajust'
 if is_pred_smooth:
     predict_dir += '_smooth'
 if is_pred_reverse:
-    predict_dir += '_reverse'
+    predict_dir += '_inverse'
     if is_pred_pix_reverse:
         predict_dir += '-pix'
+    elif is_pred_patch_inverse:
+        predict_dir += '-patch'
 if is_reverse_threshold:
     predict_dir += '_thre=' + str(r_thre)
 if is_edge_crop:
@@ -257,6 +274,7 @@ vm_range = 0.03
 # vm_e_range = 0.005
 vm_e_range = 0.003
 vm_e_range = 0.002
+# vm_e_range = 0.001
 # vm_e_range = difference_threshold
 
 batch_shape = (1200, 1200)
@@ -557,20 +575,48 @@ def main():
         # predict normalization
         if is_predict_norm_local:
             p = norm_patch_size
-            for i in range(batch_shape[0] // p):
-                for j in range(batch_shape[1] // p):
-                    local_mask = mask[p*i:p*(i+1), p*j:p*(j+1)]
-                    local_gt_diff = gt_diff[p*i:p*(i+1), p*j:p*(j+1)]
-                    local_pred = predict_diff_masked[p*i:p*(i+1), p*j:p*(j+1)]
-                    local_mask_len = np.sum(local_mask)
-                    if local_mask_len < 10:
-                        predict_diff[p*i:p*(i+1), p*j:p*(j+1)] = 0
-                        continue
-                    local_mean_gt = np.sum(local_gt_diff) / local_mask_len
-                    local_mean_pred = np.sum(local_pred) / local_mask_len
-                    local_sd_gt = np.sqrt(np.sum(np.square(local_gt_diff)) / local_mask_len)
-                    local_sd_pred = np.sqrt(np.sum(np.square(local_pred)) / local_mask_len)
-                    predict_diff[p*i:p*(i+1), p*j:p*(j+1)] = (local_pred - local_mean_pred) * (local_sd_gt / local_sd_pred) + local_mean_gt
+
+            if is_norm_local_pix:
+                new_pred_diff = np.zeros_like(predict_diff)
+                for i in range(p + 1, batch_shape[0] - p - 1):
+                    for j in range(p + 1, batch_shape[1] - p - 1):
+                        if not mask[i, j]:
+                            new_pred_diff[i, j] = 0
+                            continue
+                        local_mask = mask[i-p:i+p, j-p:j+p]
+                        local_gt_diff = gt_diff[i-p:i+p, j-p:j+p]
+                        local_pred = predict_diff_masked[i-p:i+p, j-p:j+p]
+                        local_mask_len = np.sum(local_mask)
+                        if local_mask_len < 10:
+                            new_pred_diff[i, j] = 0
+                            mask[i, j] = False
+                            continue
+                        local_mean_gt = np.sum(local_gt_diff) / local_mask_len
+                        local_mean_pred = np.sum(local_pred) / local_mask_len
+                        local_sd_gt = np.sqrt(np.sum(np.square(local_gt_diff)) / local_mask_len)
+                        local_sd_pred = np.sqrt(np.sum(np.square(local_pred)) / local_mask_len)
+                        new_pred_diff[i, j] = (predict_diff[i, j] - local_mean_pred) * (local_sd_gt / local_sd_pred) + local_mean_gt
+                predict_diff = new_pred_diff
+                mask[:p, :] = False
+                mask[batch_shape[0] - p:, :] = False
+                mask[:, :p] = False
+                mask[:, batch_shape[1] - p:] = False
+            else:
+                for i in range(batch_shape[0] // p):
+                    for j in range(batch_shape[1] // p):
+                        local_mask = mask[p*i:p*(i+1), p*j:p*(j+1)]
+                        local_gt_diff = gt_diff[p*i:p*(i+1), p*j:p*(j+1)]
+                        local_pred = predict_diff_masked[p*i:p*(i+1), p*j:p*(j+1)]
+                        local_mask_len = np.sum(local_mask)
+                        if local_mask_len < 10:
+                            predict_diff[p*i:p*(i+1), p*j:p*(j+1)] = 0
+                            continue
+                        local_mean_gt = np.sum(local_gt_diff) / local_mask_len
+                        local_mean_pred = np.sum(local_pred) / local_mask_len
+                        local_sd_gt = np.sqrt(np.sum(np.square(local_gt_diff)) / local_mask_len)
+                        local_sd_pred = np.sqrt(np.sum(np.square(local_pred)) / local_mask_len)
+                        predict_diff[p*i:p*(i+1), p*j:p*(j+1)] = (local_pred - local_mean_pred) * (local_sd_gt / local_sd_pred) + local_mean_gt
+            
         
         elif is_predict_norm:
             mean_gt = np.sum(gt_diff) / mask_length
@@ -648,6 +694,7 @@ def main():
         # error
         depth_err_abs = np.abs(depth_gt - depth_gap)
         depth_err_sqr = np.square(depth_gt - depth_gap)
+        depth_err_diff = depth_gt - depth_gap
         if is_pred_ajust:
             # predict_err_abs = np.abs(gt_diff - out_diff_ajusted)
             # predict_err_sqr = np.square(gt_diff - out_diff_ajusted)
@@ -657,10 +704,15 @@ def main():
             predict_err_abs = np.abs(depth_gt - predict_depth)
             predict_err_sqr = np.square(depth_gt - predict_depth)
 
-        # error image
+        # error image ##################################################
         depth_err = depth_err_abs
         predict_err = predict_err_abs
         predict_err_masked = predict_err * mask
+
+        # depth_err = depth_err_diff
+        # predict_err_masked = (depth_gt - predict_depth) * mask
+        #################################################################
+
         # Mean Absolute Error
         predict_MAE = np.sum(predict_err_abs * mask) / mask_length
         depth_MAE = np.sum(depth_err_abs * mask) / mask_length
@@ -671,8 +723,8 @@ def main():
         predict_RMSE = np.sqrt(predict_MSE)
         depth_RMSE = np.sqrt(depth_MSE)
 
-        if is_pred_pix_reverse:
-            if is_reverse_threshold:
+        if is_pred_pix_reverse: # Inverse on Pix
+            if is_reverse_threshold: # Inverse by Threshold
                 predict_err_abs = np.where(np.logical_and(predict_err_abs > r_thre, predict_err_abs > predict_err_abs_R), 
                                             predict_err_abs_R, predict_err_abs)
                 predict_err_sqr = np.where(np.logical_and(predict_err_sqr > r_thre**2, predict_err_sqr > predict_err_sqr_R), 
@@ -685,6 +737,21 @@ def main():
             predict_MAE = np.sum(predict_err_abs * mask) / mask_length
             predict_MSE = np.sum(predict_err_sqr * mask) / mask_length
             predict_RMSE = np.sqrt(predict_MSE)
+        elif is_pred_patch_inverse: # Inverse on Patch
+            p = norm_patch_size
+            for i in range(batch_shape[0] // p):
+                for j in range(batch_shape[1] // p):
+                    err_abs_patch = predict_err_abs[p*i:p*(i+1), p*j:p*(j+1)]
+                    err_abs_patch_R = predict_err_abs_R[p*i:p*(i+1), p*j:p*(j+1)]
+                    err_sqr_patch = predict_err_sqr[p*i:p*(i+1), p*j:p*(j+1)]
+                    err_sqr_patch_R = predict_err_sqr_R[p*i:p*(i+1), p*j:p*(j+1)]
+                    if np.sum(err_sqr_patch) < np.sum(err_abs_patch_R):
+                        predict_err_abs[p*i:p*(i+1), p*j:p*(j+1)] = err_abs_patch
+                        predict_err_sqr[p*i:p*(i+1), p*j:p*(j+1)] = err_sqr_patch
+                    else:
+                        predict_err_abs[p*i:p*(i+1), p*j:p*(j+1)] = err_abs_patch_R
+                        predict_err_sqr[p*i:p*(i+1), p*j:p*(j+1)] = err_sqr_patch_R
+
         elif is_pred_reverse:
             if predict_RMSE > predict_RMSE_R:
                 depth_err = depth_err_R
@@ -743,7 +810,7 @@ def main():
         # if test_idx in test_range:
         if test_idx in save_img_range:
             # layout
-            fig = plt.figure(figsize=(7, 4))
+            fig = plt.figure(figsize=(7, 5))
             gs_master = GridSpec(nrows=2,
                                 ncols=2,
                                 height_ratios=[1, 1],
@@ -788,6 +855,10 @@ def main():
             ax_enh1.imshow(depth_gap * mask, cmap='jet', vmin=vmin_s, vmax=vmax_s)
             ax_enh2.imshow(predict_masked, cmap='jet', vmin=vmin_s, vmax=vmax_s)
 
+            ax_enh0.set_title('Ground Truth')
+            ax_enh1.set_title('Low-res')
+            ax_enh2.set_title('Ours')
+
             # misc
             ax_misc0.imshow(shading_bgr[:, :, ::-1])
             # ax_misc0.imshow(np.dstack([shading_gray, shading_gray, shading_gray]))
@@ -797,9 +868,22 @@ def main():
             # ax_misc0.imshow(np.dstack([shading_norm_img, shading_norm_img, shading_norm_img]))
 
             # error
-            vmin_e, vmax_e = 0, vm_e_range
-            ax_err_gap.imshow(depth_err * mask, cmap='jet', vmin=vmin_e, vmax=vmax_e)
-            ax_err_pred.imshow(predict_err_masked, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+            is_scale_err_mm = True
+            if is_scale_err_mm:
+                scale_err = 1000
+            else:
+                scale_err = 1
+
+            vmin_e, vmax_e = 0, vm_e_range * scale_err
+            ax_err_gap.imshow(depth_err * mask * scale_err, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+            ax_err_pred.imshow(predict_err_masked * scale_err, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+
+            # vmin_e, vmax_e = -1 * vm_e_range * scale_err, vm_e_range * scale_err
+            # # ax_err_gap.imshow(depth_err * mask * scale_err, cmap='coolwarm', vmin=vmin_e, vmax=vmax_e)
+            # # ax_err_pred.imshow(predict_err_masked * scale_err, cmap='coolwarm', vmin=vmin_e, vmax=vmax_e)
+            # ax_err_gap.imshow(depth_err * mask * scale_err, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+            # ax_err_pred.imshow(predict_err_masked * scale_err, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+
 
             # title
             # ax_enh0.set_title('Groud Truth')
@@ -821,24 +905,35 @@ def main():
                 cb_pos.x0 + cb_offset, im_pos.y0, cb_pos.x1 - cb_pos.x0,
                 im_pos.y1 - im_pos.y0
             ])
+            ax_cb0.set_xlabel('                [m]')
 
             plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin_e, vmax=vmax_e),
                                         cmap='jet'),
                         cax=ax_cb1)
+            # plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin_e, vmax=vmax_e),
+            #                             cmap='coolwarm'),
+            #             cax=ax_cb1)
             im_pos, cb_pos = ax_err_pred.get_position(), ax_cb1.get_position()
             ax_cb1.set_position([
                 cb_pos.x0 + cb_offset, im_pos.y0, cb_pos.x1 - cb_pos.x0,
                 im_pos.y1 - im_pos.y0
             ])
+            if is_scale_err_mm:
+                ax_cb1.set_xlabel('                [mm]')
+            else:
+                ax_cb1.set_xlabel('                [m]')
 
             plt.savefig(predict_dir + '/result-{:03d}.png'.format(test_idx), dpi=300)
+            # plt.savefig(predict_dir + '/result-dif-{:03d}.png'.format(test_idx), dpi=300)
+            # plt.savefig(predict_dir + '/result-dif-{:03d}.jpg'.format(test_idx), dpi=300)
+            # plt.savefig(predict_dir + '/result-{:03d}.pdf'.format(test_idx), dpi=300)
             plt.close()
 
     with open(predict_dir + '/error_compare.txt', mode='w') as f:
         f.write(err_strings)
 
     compare_error.compare_error(predict_dir + '/')
-    compare_error.compare_error(predict_dir + '/', error='MAE')
+    # compare_error.compare_error(predict_dir + '/', error='MAE')
 
 if __name__ == "__main__":
     main()

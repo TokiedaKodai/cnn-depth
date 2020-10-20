@@ -40,7 +40,7 @@ _, out_local, learn_type, start, epoch_num, augment_type, dropout = argv
 #     learning_rate = 0.00001
 
 learning_rate = 0.001 # Default
-learning_rate = 0.0001
+# learning_rate = 0.0001
 
 # Transfer Learning
 is_transfer_learning = False
@@ -80,11 +80,12 @@ if is_transfer_learning or is_finetune or is_transfer_encoder:
     use_generator = False
     is_from_min = True
 else:
-    use_generator = True
+    use_generator = False
     src_dir = '../data/render'
-    src_dir = '../data/render_wave1'
-    src_dir = '../data/render_wave1-board'
-    src_dir = '../data/render_wave2_2000'
+    src_dir = '../data/render_wave1_300'
+    # src_dir = '../data/render_wave1-board'
+    src_dir = '../data/render_wave2_1100'
+    # src_dir = '../data/render_wave2-board'
 
 
 #RemoteOutput
@@ -124,10 +125,10 @@ if is_transfer_learning or is_finetune or is_transfer_encoder:
     data_idx_range = range(16)
 else:
     data_idx_range = range(160)
-    # data_idx_range = range(200)
-    # data_idx_range = range(320)
-    data_idx_range = range(1000)
-    data_idx_range = range(2000)
+    data_idx_range = range(200)
+    # # data_idx_range = range(320)
+    # data_idx_range = range(1000)
+    # data_idx_range = range(2000)
 
 
 # parameters
@@ -156,8 +157,22 @@ is_shading_norm = True # Shading Normalization
 is_difference_norm = True # Difference Normalization
 # is_difference_norm = False
 
+# Shading Noise
+is_noise_shading = True
+is_noise_shading = False
+freq_num = 1
+freq_range = 100
+noise_intensity = 50
+# GT Noise
+is_noise_gt = True
+# is_noise_gt = False
+noise_mean = 0
+noise_sigma = 0.0005
+
+
 batch_shape = (120, 120)
 batch_tl = (0, 0)  # top, left
+img_size = 1200
 
 train_batch_size = 64
 
@@ -203,7 +218,24 @@ zoom_range=[0.8, 1.2]
 if is_transfer_learning or is_finetune or is_transfer_encoder:
     difference_threshold = 0.005
 
-    
+
+def perlin(r,seed=np.random.randint(0,100)):
+    def fade(t):return 6*t**5-15*t**4+10*t**3
+    def lerp(a,b,t):return a+fade(t)*(b-a)
+
+    np.random.seed(seed)
+
+    ri = np.floor(r).astype(int)
+    ri[0] -= ri[0].min()
+    ri[1] -= ri[1].min()
+    rf = np.array(r) % 1
+    g = 2 * np.random.rand(ri[0].max()+2,ri[1].max()+2,2) - 1
+    e = np.array([[[[0,0],[0,1],[1,0],[1,1]]]])
+    er = (np.array([rf]).transpose(2,3,0,1) - e).reshape(r.shape[1],r.shape[2],4,1,2)
+    gr = np.r_["3,4,0",g[ri[0],ri[1]],g[ri[0],ri[1]+1],g[ri[0]+1,ri[1]],g[ri[0]+1,ri[1]+1]].transpose(0,1,3,2).reshape(r.shape[1],r.shape[2],4,2,1)
+    p = (er@gr).reshape(r.shape[1],r.shape[2],4).transpose(2,0,1)
+
+    return lerp(lerp(p[0],p[2],rf[0]),lerp(p[1],p[3],rf[0]),rf[1])
 
 def augment_zoom(img):
     h, w, s = img.shape
@@ -352,8 +384,9 @@ def prepare_data(data_idx_range, return_valid=False):
         return img[t:t + h, l:l + w]
 
     if is_transfer_learning or is_finetune or is_transfer_encoder:
-        src_rec_dir = src_dir + '/rec'
-        src_rec_dir = src_dir + '/rec_ajusted'
+        # src_rec_dir = src_dir + '/rec'
+        # src_rec_dir = src_dir + '/rec_ajusted'
+        src_rec_dir = src_dir + '/lowres'
         src_frame_dir = src_dir + '/frame'
         src_gt_dir = src_dir + '/gt'
         src_shading_dir = src_dir + '/shading'
@@ -388,30 +421,51 @@ def prepare_data(data_idx_range, return_valid=False):
             src_depth_gap = src_rec_dir + '/{:05d}.bmp'.format(data_idx)
 
         # read images
-        bgr = cv2.imread(src_bgra, -1) / 255.
+        bgr = cv2.imread(src_bgra, -1)
+        bgr = bgr[:img_size, :img_size, :] / 255.
         depth_img_gap = cv2.imread(src_depth_gap, -1)
+        depth_img_gap = depth_img_gap[:img_size, :img_size, :]
         # depth_gap = depth_tools.unpack_png_to_float(depth_img_gap)
         depth_gap = depth_tools.unpack_bmp_bgra_to_float(depth_img_gap)
 
         depth_img_gt = cv2.imread(src_depth_gt, -1)
+        depth_img_gt = depth_img_gt[:img_size, :img_size, :]
         depth_gt = depth_tools.unpack_bmp_bgra_to_float(depth_img_gt)
         img_shape = bgr.shape[:2]
 
         # shading_bgr = cv2.imread(src_shading, -1)
         # shading[:, :, 0] = 0.299 * shading_bgr[:, :, 2] + 0.587 * shading_bgr[:, :, 1] + 0.114 * shading_bgr[:, :, 0]
         shading_gray = cv2.imread(src_shading, 0) # GrayScale
-        shading = shading_gray
+        shading = shading_gray[:img_size, :img_size]
 
-        is_shading_available = shading > 0
+        # is_shading_available = shading > 0
+        is_shading_available = shading > 16.0
         mask_shading = is_shading_available * 1.0
         # depth_gap = depth_gt[:, :] * mask_shading
         # mean_depth = np.sum(depth_gap) / np.sum(mask_shading)
         # depth_gap = mean_depth * mask_shading
         depth_gap *= mask_shading
 
+        # Noise
+        if is_noise_shading:
+            noise = np.zeros((img_size, img_size))
+            for i_perlin in np.random.rand(freq_num) * freq_range:
+                i_perlin += freq_range
+                perlin_linspace = np.linspace(0, 8*i_perlin, img_size)
+                perlin_meshgrid = np.array(np.meshgrid(perlin_linspace, perlin_linspace))
+                noise += perlin(perlin_meshgrid, seed=data_idx)
+                noise *= noise_intensity
+            shading += noise.astype('uint8')
+            shading *= mask_shading.astype('uint8')
+        if is_noise_gt:
+            h_gauss, w_gauss = depth_gt.shape
+            gauss = np.random.normal(noise_mean, noise_sigma, (h_gauss, w_gauss))
+            gauss = gauss.reshape(h_gauss, w_gauss)
+            depth_gt += gauss
+
         if is_shading_norm: # shading norm : mean 0, var 1
-            is_shading_available = shading > 16.0
-            mask_shading = is_shading_available * 1.0
+            # is_shading_available = shading > 16.0
+            # mask_shading = is_shading_available * 1.0
             mean_shading = np.sum(shading*mask_shading) / np.sum(mask_shading)
             var_shading = np.sum(np.square((shading - mean_shading)*mask_shading)) / np.sum(mask_shading)
             std_shading = np.sqrt(var_shading)

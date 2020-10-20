@@ -10,7 +10,10 @@ import io
 import depth_tools
 
 is_vs = True
-is_vs = False
+# is_vs = False
+
+batch_shape = (255, 255)
+norm_patch_size = 3
 
 DIR = '../data/vs_guided/'
 GT = DIR + 'gt/'
@@ -26,8 +29,9 @@ difference_threshold = 0.005
 
 vmin, vmax = (0.8, 1.4)
 vm_range = 0.02
-# vm_e_range = 0.005
-vm_e_range = difference_threshold
+vm_e_range = 0.005
+vm_e_range = 0.001
+# vm_e_range = difference_threshold
 
 # calib 200317
 cam_params = {
@@ -53,15 +57,15 @@ list_RMSE_pred = []
 
 err_strings = 'index,MAE depth,MAE predict,RMSE depth,RMSE predict\n'
 
-
-for i in range(16):
-    gt = np.load(GT + 'gt{:03d}.npy'.format(i))
-    rec = np.load(REC + 'depth{:03d}.npy'.format(i))
+# for idx in range(16):
+for idx in range(19):
+    gt = np.load(GT + 'gt{:03d}.npy'.format(idx))
+    rec = np.load(REC + 'depth{:03d}.npy'.format(idx))
     if is_vs:
-        pred = np.load(PRED + 'predict-{:03d}.npy'.format(i))
+        pred = np.load(PRED + 'predict-{:03d}.npy'.format(idx))
     else:
-        pred = np.load(PRED + 'proposed{:03d}.npy'.format(i))
-    shading_gray = cv2.imread(SHD + 'shading{:03d}.png'.format(i), 0)
+        pred = np.load(PRED + 'proposed{:03d}.npy'.format(idx))
+    shading_gray = cv2.imread(SHD + 'shading{:03d}.png'.format(idx), 0)
 
     is_gt_available = (gt > depth_threshold) * 1.0
     is_rec_available = (rec > depth_threshold) * 1.0
@@ -93,64 +97,92 @@ for i in range(16):
     gt_diff = (gt - rec) * mask
     predict_masked = pred * mask
 
+    p = norm_patch_size
+    if is_vs:
+        predict_diff = pred - rec
+        predict_diff_masked = predict_diff * mask
+        new_pred_diff = np.zeros_like(predict_diff)
+        for i in range(p + 1, batch_shape[0] - p - 1):
+            for j in range(p + 1, batch_shape[1] - p - 1):
+                if not mask[i, j]:
+                    new_pred_diff[i, j] = 0
+                    continue
+                local_mask = mask[i-p:i+p, j-p:j+p]
+                local_gt_diff = gt_diff[i-p:i+p, j-p:j+p]
+                local_pred = predict_diff_masked[i-p:i+p, j-p:j+p]
+                local_mask_len = np.sum(local_mask)
+                if local_mask_len < 10:
+                    new_pred_diff[i, j] = 0
+                    mask[i, j] = False
+                    continue
+                local_mean_gt = np.sum(local_gt_diff) / local_mask_len
+                local_mean_pred = np.sum(local_pred) / local_mask_len
+                local_sd_gt = np.sqrt(np.sum(np.square(local_gt_diff)) / local_mask_len)
+                local_sd_pred = np.sqrt(np.sum(np.square(local_pred)) / local_mask_len)
+                new_pred_diff[i, j] = (predict_diff[i, j] - local_mean_pred) * (local_sd_gt / local_sd_pred) + local_mean_gt
+        predict_diff = new_pred_diff
+
+    predict_depth = (new_pred_diff + rec) * mask
+
     depth_gt = gt.copy()
     depth_gap = rec.copy()
-    predict_depth = pred.copy() - rec
-    predict_masked = predict_depth * mask
+    # predict_depth = pred.copy() - rec
+    # predict_depth = pred.copy()
+    # predict_masked = predict_depth * mask
 
-    mean_gt = np.sum(gt_diff) / mask_length
-    mean_predict = np.sum(predict_masked) / mask_length
-    gt_diff -= mean_gt
-    predict_depth -= mean_predict
-    predict_depth *= -1.0 # reverse
-    out_diff_R = predict_depth.copy() # save diff
-    sd_gt = np.sqrt(np.sum(np.square((gt_diff)*mask)) / mask_length)
-    sd_predict = np.sqrt(np.sum(np.square((predict_depth)*mask)) / mask_length)
-    predict_depth *= sd_gt / sd_predict
-    predict_depth += mean_gt
-    predict_masked = predict_depth * mask
+    # mean_gt = np.sum(gt_diff) / mask_length
+    # mean_predict = np.sum(predict_masked) / mask_length
+    # gt_diff -= mean_gt
+    # predict_depth -= mean_predict
+    # predict_depth *= -1.0 # reverse
+    # out_diff_R = predict_depth.copy() # save diff
+    # sd_gt = np.sqrt(np.sum(np.square((gt_diff)*mask)) / mask_length)
+    # sd_predict = np.sqrt(np.sum(np.square((predict_depth)*mask)) / mask_length)
+    # predict_depth *= sd_gt / sd_predict
+    # predict_depth += mean_gt
+    # predict_masked = predict_depth * mask
 
-    predict_depth += depth_gap
-    predict_masked += depth_gap * mask
+    # predict_depth += depth_gap
+    # predict_masked += depth_gap * mask
 
-    depth_err_abs_R = np.abs(depth_gt - depth_gap)
-    depth_err_sqr_R = np.square(depth_gt - depth_gap)
-    predict_err_abs_R = np.abs(depth_gt - predict_depth)
-    predict_err_sqr_R = np.square(depth_gt - predict_depth)
+    # depth_err_abs_R = np.abs(depth_gt - depth_gap)
+    # depth_err_sqr_R = np.square(depth_gt - depth_gap)
+    # predict_err_abs_R = np.abs(depth_gt - predict_depth)
+    # predict_err_sqr_R = np.square(depth_gt - predict_depth)
 
     # error image
-    depth_err_R = depth_err_abs_R
-    predict_err_R = predict_err_abs_R
-    predict_err_masked_R = predict_err_R * mask
-    # Mean Absolute Error
-    predict_MAE_R = np.sum(predict_err_abs_R * mask) / mask_length
-    depth_MAE_R = np.sum(depth_err_abs_R * mask) / mask_length
-    # Mean Squared Error
-    predict_MSE_R = np.sum(predict_err_sqr_R * mask) / mask_length
-    depth_MSE_R = np.sum(depth_err_sqr_R * mask) / mask_length
-    # Root Mean Square Error
-    predict_RMSE_R = np.sqrt(predict_MSE_R)
-    depth_RMSE_R = np.sqrt(depth_MSE_R)
-    #################################################################
-    predict_depth = pred.copy() - rec
+    # depth_err_R = depth_err_abs_R
+    # predict_err_R = predict_err_abs_R
+    # predict_err_masked_R = predict_err_R * mask
+    # # Mean Absolute Error
+    # predict_MAE_R = np.sum(predict_err_abs_R * mask) / mask_length
+    # depth_MAE_R = np.sum(depth_err_abs_R * mask) / mask_length
+    # # Mean Squared Error
+    # predict_MSE_R = np.sum(predict_err_sqr_R * mask) / mask_length
+    # depth_MSE_R = np.sum(depth_err_sqr_R * mask) / mask_length
+    # # Root Mean Square Error
+    # predict_RMSE_R = np.sqrt(predict_MSE_R)
+    # depth_RMSE_R = np.sqrt(depth_MSE_R)
+    # #################################################################
+    # predict_depth = pred.copy() - rec
 
-    depth_gt_masked = depth_gt * mask
-    gt_diff = (depth_gt - depth_gap) * mask
-    predict_masked = predict_depth * mask
+    # depth_gt_masked = depth_gt * mask
+    # gt_diff = (depth_gt - depth_gap) * mask
+    # predict_masked = predict_depth * mask
 
-    mean_gt = np.sum(gt_diff) / mask_length
-    mean_predict = np.sum(predict_masked) / mask_length
-    gt_diff -= mean_gt
-    predict_depth -= mean_predict
-    out_diff = predict_depth.copy() # save diff
-    sd_gt = np.sqrt(np.sum(np.square((gt_diff)*mask)) / mask_length)
-    sd_predict = np.sqrt(np.sum(np.square((predict_depth)*mask)) / mask_length)
-    predict_depth *= sd_gt / sd_predict
-    predict_depth += mean_gt
-    predict_masked = predict_depth * mask
+    # mean_gt = np.sum(gt_diff) / mask_length
+    # mean_predict = np.sum(predict_masked) / mask_length
+    # gt_diff -= mean_gt
+    # predict_depth -= mean_predict
+    # out_diff = predict_depth.copy() # save diff
+    # sd_gt = np.sqrt(np.sum(np.square((gt_diff)*mask)) / mask_length)
+    # sd_predict = np.sqrt(np.sum(np.square((predict_depth)*mask)) / mask_length)
+    # predict_depth *= sd_gt / sd_predict
+    # predict_depth += mean_gt
+    # predict_masked = predict_depth * mask
 
-    predict_depth += depth_gap
-    predict_masked += depth_gap * mask
+    # predict_depth += depth_gap
+    # predict_masked += depth_gap * mask
 
     depth_err_abs = np.abs(depth_gt - depth_gap)
     depth_err_sqr = np.square(depth_gt - depth_gap)
@@ -159,9 +191,14 @@ for i in range(16):
     predict_err_sqr = np.square(depth_gt - predict_depth)
 
     # error image
-    depth_err = depth_err_abs
-    predict_err = predict_err_abs
-    predict_err_masked = predict_err * mask
+    # depth_err = depth_err_abs
+    # predict_err = predict_err_abs
+    # predict_err_masked = predict_err * mask
+    depth_err = gt_diff
+    predict_err = gt - predict_depth
+    predict_err_masked = np.zeros_like(predict_err)
+    predict_err_masked[p+1:batch_shape[0] - p-1, p+1:batch_shape[1] - p-1] = predict_err[p+1:batch_shape[0] - p-1, p+1:batch_shape[1] - p-1]
+    predict_err_masked *= mask
     # Mean Absolute Error
     predict_MAE = np.sum(predict_err_abs * mask) / mask_length
     depth_MAE = np.sum(depth_err_abs * mask) / mask_length
@@ -172,13 +209,14 @@ for i in range(16):
     predict_RMSE = np.sqrt(predict_MSE)
     depth_RMSE = np.sqrt(depth_MSE)
 
-    predict_err_abs = np.where(predict_err_abs < predict_err_abs_R, predict_err_abs, predict_err_abs_R)
-    predict_err_sqr = np.where(predict_err_sqr < predict_err_sqr_R, predict_err_sqr, predict_err_sqr_R)
-    predict_err = predict_err_abs
-    predict_err_masked = predict_err * mask
-    predict_MAE = np.sum(predict_err_abs * mask) / mask_length
-    predict_MSE = np.sum(predict_err_sqr * mask) / mask_length
-    predict_RMSE = np.sqrt(predict_MSE)
+    # predict_err_abs = np.where(predict_err_abs < predict_err_abs_R, predict_err_abs, predict_err_abs_R)
+    # predict_err_sqr = np.where(predict_err_sqr < predict_err_sqr_R, predict_err_sqr, predict_err_sqr_R)
+
+    # predict_err = predict_err_abs
+    # predict_err_masked = predict_err * mask
+    # predict_MAE = np.sum(predict_err_abs * mask) / mask_length
+    # predict_MSE = np.sum(predict_err_sqr * mask) / mask_length
+    # predict_RMSE = np.sqrt(predict_MSE)
 
 
 
@@ -206,7 +244,7 @@ for i in range(16):
     list_RMSE_rec.append(depth_RMSE)
     list_RMSE_pred.append(predict_RMSE)
 
-    err_strings += str(i) + ','
+    err_strings += str(idx) + ','
     for string in [depth_MAE, predict_MAE, depth_RMSE, predict_RMSE]:
         err_strings += str(string) + ','
     err_strings.rstrip(',')
@@ -258,16 +296,19 @@ for i in range(16):
 
     ax_enh0.imshow(gt * mask, cmap='jet', vmin=vmin_s, vmax=vmax_s)
     ax_enh1.imshow(rec * mask, cmap='jet', vmin=vmin_s, vmax=vmax_s)
-    ax_enh2.imshow(pred * mask, cmap='jet', vmin=vmin_s, vmax=vmax_s)
+    ax_enh2.imshow(predict_depth * mask, cmap='jet', vmin=vmin_s, vmax=vmax_s)
 
     # misc
     # ax_misc0.imshow(shading_bgr[:, :, ::-1])
     ax_misc0.imshow(np.dstack([shading_gray, shading_gray, shading_gray]))
 
     # error
-    vmin_e, vmax_e = 0, vm_e_range
-    ax_err_gap.imshow(depth_err * mask, cmap='jet', vmin=vmin_e, vmax=vmax_e)
-    ax_err_pred.imshow(predict_err_masked, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+    # vmin_e, vmax_e = 0, vm_e_range
+    # ax_err_gap.imshow(depth_err * mask, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+    # ax_err_pred.imshow(predict_err_masked, cmap='jet', vmin=vmin_e, vmax=vmax_e)
+    vmin_e, vmax_e = -1 * vm_e_range, vm_e_range
+    ax_err_gap.imshow(depth_err * mask, cmap='coolwarm', vmin=vmin_e, vmax=vmax_e)
+    ax_err_pred.imshow(predict_err_masked, cmap='coolwarm', vmin=vmin_e, vmax=vmax_e)
 
     # colorbar
     plt.tight_layout()
@@ -283,8 +324,11 @@ for i in range(16):
         im_pos.y1 - im_pos.y0
     ])
 
+    # plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin_e, vmax=vmax_e),
+    #                             cmap='jet'),
+    #             cax=ax_cb1)
     plt.colorbar(ScalarMappable(colors.Normalize(vmin=vmin_e, vmax=vmax_e),
-                                cmap='jet'),
+                                cmap='coolwarm'),
                 cax=ax_cb1)
     im_pos, cb_pos = ax_err_pred.get_position(), ax_cb1.get_position()
     ax_cb1.set_position([
@@ -293,9 +337,9 @@ for i in range(16):
     ])
 
     if is_vs:
-        plt.savefig(DIR + 'output_vs_guided/result-{:03d}.png'.format(i), dpi=300)
+        plt.savefig(DIR + 'output_vs_guided/result-{:03d}.png'.format(idx), dpi=300)
     else:
-        plt.savefig(DIR + 'output_proposed/result-{:03d}.png'.format(i), dpi=300)
+        plt.savefig(DIR + 'output_proposed/result-{:03d}.png'.format(idx), dpi=300)
     plt.close()
 
 
