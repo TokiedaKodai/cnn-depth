@@ -78,14 +78,14 @@ is_select_val = True
 if is_transfer_learning or is_finetune or is_transfer_encoder:
     src_dir = '../data/input_200318'
     use_generator = False
-    is_from_min = True
+    # is_from_min = True
 else:
     use_generator = False
     src_dir = '../data/render'
     src_dir = '../data/render_wave1_300'
     # src_dir = '../data/render_wave1-board'
     src_dir = '../data/render_wave2_1100'
-    # src_dir = '../data/render_wave2-board'
+    src_dir = '../data/render_wave2-board'
 
 
 #RemoteOutput
@@ -150,6 +150,7 @@ monitor_loss = 'val_loss'
 # input
 is_input_depth = True
 is_input_frame = True
+is_input_coord = True
 
 # normalization
 is_shading_norm = True # Shading Normalization
@@ -385,8 +386,8 @@ def prepare_data(data_idx_range, return_valid=False):
 
     if is_transfer_learning or is_finetune or is_transfer_encoder:
         # src_rec_dir = src_dir + '/rec'
-        # src_rec_dir = src_dir + '/rec_ajusted'
-        src_rec_dir = src_dir + '/lowres'
+        src_rec_dir = src_dir + '/rec_ajusted'
+        src_rec_dir = src_dir + '/lowres' # Median Filter Depth
         src_frame_dir = src_dir + '/frame'
         src_gt_dir = src_dir + '/gt'
         src_shading_dir = src_dir + '/shading'
@@ -484,11 +485,17 @@ def prepare_data(data_idx_range, return_valid=False):
         # depth_gap /= depth_gap.max()
         # depth_gt /= depth_gt.max()
 
+        if is_input_coord:
+            coord_x = np.linspace(0, 1, img_size)
+            coord_y = np.linspace(0, 1, img_size)
+            grid_x, grid_y = np.meshgrid(coord_x, coord_y)
 
         # merge bgr + depth_gap
         if is_input_frame:
             if is_input_depth:
                 bgrd = np.dstack([shading[:, :], depth_gap, bgr[:, :, 0]])
+                if is_input_coord:
+                    bgrd = np.dstack([shading[:, :], depth_gap, bgr[:, :, 0], grid_x, grid_y])
             else:
                 bgrd = np.dstack([shading[:, :], bgr[:, :, 0]])
         else:
@@ -802,6 +809,8 @@ def main():
     if is_input_depth:
         if is_input_frame:
             ch_num = 3
+            if is_input_coord:
+                ch_num = 5
         else:
             ch_num = 2
     else:

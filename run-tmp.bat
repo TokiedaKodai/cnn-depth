@@ -157,3 +157,7 @@ python predict.py wave2_TL_lr4_from-min 600 3
 REM python train.py wave2_FT_lr4_from-min 2 1 600 0 10
 python predict.py wave2_FT_lr4_from-min 600 0
 python predict.py wave2_FT_lr4_from-min 600 3
+
+
+
+

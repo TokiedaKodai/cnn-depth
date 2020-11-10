@@ -11,6 +11,7 @@ from matplotlib.cm import ScalarMappable
 import io
 import sys
 import pandas as pd
+import cupy as cp
 
 import network
 import depth_tools
@@ -59,6 +60,10 @@ difference_scaling = 1
 # input
 is_input_depth = True
 is_input_frame = True
+is_input_coord = False
+# is_input_coord = True
+
+img_size = 1200
 
 #select model
 # save_period = 10
@@ -87,7 +92,9 @@ if data_type is '0':
     # src_dir = '../data/input_200318'
     src_dir = '../data/board'
     predict_dir = out_dir + '/predict_{}_board'.format(epoch_num)
+    # predict_dir = out_dir + '/predict_{}_board-median'.format(epoch_num)
     # predict_dir = out_dir + '/predict_{}_trans'.format(epoch_num)
+    # predict_dir = out_dir + '/predict_{}_board_test_cp'.format(epoch_num)
     data_num = 68
     data_idx_range = list(range(data_num))
 elif data_type is '1':
@@ -109,6 +116,7 @@ elif data_type is '2':
 elif data_type is '3':
     src_dir = '../data/real'
     predict_dir = out_dir + '/predict_{}_real'.format(epoch_num)
+    # predict_dir = out_dir + '/predict_{}_real-median'.format(epoch_num)
     data_num = 9
     data_num = 20
     data_idx_range = list(range(data_num))
@@ -131,16 +139,21 @@ is_save_depth_img = False
 is_predict_norm = True # Difference Normalization
 # is_predict_norm = False
 is_predict_norm_local = True # Difference Normalization Local
+patch_rate = 95 # %
 # is_predict_norm_local = False
 norm_patch_size = 12
 # norm_patch_size = 24
 # norm_patch_size = 48
 is_norm_local_pix = False
 is_norm_local_pix = True
+norm_patch_size = 13
 norm_patch_size = 6
-# norm_patch_size = 12
-# norm_patch_size = 24
+norm_patch_size = 12
+norm_patch_size = 24
 # norm_patch_size = 48
+
+is_fix_inv_local = True
+is_fix_inv_local = False
 
 is_pred_ajust = True
 is_pred_ajust = False
@@ -178,6 +191,9 @@ if is_predict_norm:
         if is_norm_local_pix:
             predict_dir += '-pix'
         predict_dir += '=' + str(norm_patch_size)
+        predict_dir += '_rate=' + str(patch_rate)
+    if is_fix_inv_local:
+        predict_dir += '_inv-local'
 if is_pred_ajust:
     predict_dir += '_ajust'
 if is_pred_smooth:
@@ -300,8 +316,9 @@ cam_params = {
 
 def main():
     if data_type is '0':
-        src_rec_dir = src_dir + '/rec'
-        # src_rec_dir = src_dir + '/rec_ajusted'
+        # src_rec_dir = src_dir + '/rec'
+        src_rec_dir = src_dir + '/rec_ajusted'
+        # src_rec_dir = src_dir + '/lowres' ############################ median filter depth
         src_frame_dir = src_dir + '/frame'
         src_gt_dir = src_dir + '/gt'
         src_shading_dir = src_dir + '/shading'
@@ -320,11 +337,14 @@ def main():
         src_gt_dir = src_dir + '/gt'
         src_shading_dir = src_dir + '/shade'
         src_rec_dir = src_dir + '/rec'
+        # src_rec_dir = src_dir + '/lowres'
 
 
     if is_input_depth:
         if is_input_frame:
             ch_num = 3
+            if is_input_coord:
+                ch_num = 5
         else:
             ch_num = 2
     else:
@@ -464,10 +484,17 @@ def main():
 
         depth_thre = depth_threshold
 
+        if is_input_coord:
+            coord_x = np.linspace(0, 1, img_size)
+            coord_y = np.linspace(0, 1, img_size)
+            grid_x, grid_y = np.meshgrid(coord_x, coord_y)
+
         # merge bgr + depth_gap
         if is_input_frame:
             if is_input_depth:
                 bgrd = np.dstack([shading[:, :], depth_gap, bgr[:, :, 0]])
+                if is_input_coord:
+                    bgrd = np.dstack([shading[:, :], depth_gap, bgr[:, :, 0], grid_x, grid_y])
             else:
                 bgrd = np.dstack([shading[:, :], bgr[:, :, 0]])
         else:
@@ -574,29 +601,121 @@ def main():
 
         # predict normalization
         if is_predict_norm_local:
-            p = norm_patch_size
+            patch_size = norm_patch_size
 
             if is_norm_local_pix:
-                new_pred_diff = np.zeros_like(predict_diff)
+                # cp.cuda.set_allocator(cp.cuda.MemoryPool().malloc)
+                # mask_float = mask * 1.0
+                # kernel = np.ones((patch_size, patch_size))
+                # patch_mask_len = cv2.filter2D(mask_float, -1, kernel, borderType=cv2.BORDER_CONSTANT).astype('int16')
+                # patch_gt_sum = cv2.filter2D(gt_diff, -1, kernel, borderType=cv2.BORDER_CONSTANT)
+                # patch_pred_sum = cv2.filter2D(predict_diff_masked, -1, kernel, borderType=cv2.BORDER_CONSTANT)
+                # print(patch_mask_len[800:810, 800:810])
+                # print(np.min(patch_mask_len))
+                # print(patch_gt_sum[800:810, 800:810])
+                # print(patch_pred_sum[800:810, 800:810])
+                # patch_gt_mean = np.where(patch_mask_len < 10, 0, patch_gt_sum / patch_mask_len)
+                # patch_pred_mean = np.where(patch_mask_len < 10, 0, patch_pred_sum / patch_mask_len)
+                # print(patch_gt_mean[800:810, 800:810])
+                # print(patch_pred_mean[800:810, 800:810])
+                # print(np.max(patch_gt_mean))
+                # print(np.max(patch_pred_mean))
+                # print(patch_gt_mean)
+
+                # gt_diff_cp = cp.asarray(gt_diff).astype(cp.float32)
+                # pred_diff_cp = cp.asarray(predict_diff_masked).astype(cp.float32)
+                # mask_cp = cp.asarray(mask_float).astype(cp.float32)
+                # mask_len_cp = cp.asarray(patch_mask_len).astype(cp.float32)
+                # patch_gt_mean_cp = cp.asarray(patch_gt_mean).astype(cp.float32)
+                # patch_pred_mean_cp = cp.asarray(patch_pred_mean).astype(cp.float32)
+
+                # new_pred_diff = cp.zeros_like(pred_diff_cp)
+                # new_mask = cp.zeros_like(mask_cp)
+                # height, width = pred_diff_cp.shape
+                # get_norm_pred = cp.ElementwiseKernel(
+                #     in_params='raw float32 gt_diff, raw float32 pred_diff, raw float32 mask, raw float32 mask_len, raw float32 gt_mean, raw float32 pred_mean, int16 height, int16 width, int16 patch_size',
+                #     out_params='float32 new_pred_diff, float32 new_mask',
+                #     preamble=\
+                #     '''
+                #     __device__ int get_x_idx(int i, int width) {
+                #         return i % width;
+                #     }
+                #     __device__ int get_y_idx(int i, int height) {
+                #         return i / height;
+                #     }
+                #     ''',
+                #     operation=\
+                #     '''
+                #     int x = get_x_idx(i, width);
+                #     int y = get_y_idx(i, height);
+                #     int diameter = patch_size;
+                #     int distance = (diameter - 1) / 2;
+                #     if ( ((x >= distance) && (x < width - distance)) && ((y >= distance) && (y < height - distance)) && (mask[i] > 0) ) {
+                #         if (mask_len[i] > 10) {
+                #             float gt_sum = 0;
+                #             float pred_sum = 0;
+                #             for (int k=0; k<diameter; k++) {
+                #                 for (int l=0; l<diameter; l++) {
+                #                     float pixel_gt = gt_diff[i + (k-distance)*width + l - distance] - gt_mean[i];
+                #                     float pixel_pred = pred_diff[i + (k-distance)*width + l - distance] - pred_mean[i];
+                #                     gt_sum += pixel_gt * pixel_gt;
+                #                     pred_sum += pixel_pred * pixel_pred;
+                #                 }
+                #             }
+                #             float sd_gt = gt_sum;
+                #             float sd_pred = pred_sum;
+                #             new_pred_diff[i] = (pred_diff[i] - pred_mean[i]) * (sd_gt / sd_pred) + gt_mean[i];
+                #             new_mask[i] = 1;
+                #         } else {
+                #             new_mask[i] = 0;
+                #             new_pred_diff[i] = 0;
+                #         }
+                #     } else {
+                #         new_mask[i] = 0;
+                #         new_pred_diff[i] = 0;
+                #     }
+                #     ''',
+                #     name='get_norm_pred'
+                # )
+                # get_norm_pred(gt_diff_cp, pred_diff_cp, mask_cp, mask_len_cp, patch_gt_mean_cp, patch_pred_mean_cp, height, width, patch_size, new_pred_diff, mask_cp)
+                # predict_diff = cp.asnumpy(new_pred_diff)
+                # mask = cp.asnumpy(new_mask)
+
+                p = norm_patch_size
+                new_pred_diff = np.zeros_like(predict_diff_masked)
+                new_mask = mask.copy()
                 for i in range(p + 1, batch_shape[0] - p - 1):
                     for j in range(p + 1, batch_shape[1] - p - 1):
                         if not mask[i, j]:
                             new_pred_diff[i, j] = 0
                             continue
-                        local_mask = mask[i-p:i+p, j-p:j+p]
-                        local_gt_diff = gt_diff[i-p:i+p, j-p:j+p]
-                        local_pred = predict_diff_masked[i-p:i+p, j-p:j+p]
+                        local_mask = mask[i-p:i+p+1, j-p:j+p+1]
+                        local_gt_diff = gt_diff[i-p:i+p+1, j-p:j+p+1]
+                        local_pred = predict_diff_masked[i-p:i+p+1, j-p:j+p+1]
                         local_mask_len = np.sum(local_mask)
-                        if local_mask_len < 10:
+                        patch_len = (p*2 + 1) ** 2
+                        if local_mask_len < patch_len*patch_rate/100:
                             new_pred_diff[i, j] = 0
-                            mask[i, j] = False
+                            new_mask[i, j] = False
                             continue
                         local_mean_gt = np.sum(local_gt_diff) / local_mask_len
                         local_mean_pred = np.sum(local_pred) / local_mask_len
-                        local_sd_gt = np.sqrt(np.sum(np.square(local_gt_diff)) / local_mask_len)
-                        local_sd_pred = np.sqrt(np.sum(np.square(local_pred)) / local_mask_len)
-                        new_pred_diff[i, j] = (predict_diff[i, j] - local_mean_pred) * (local_sd_gt / local_sd_pred) + local_mean_gt
+                        local_sd_gt = np.sqrt(np.sum(np.square(local_gt_diff - local_mean_gt)) / local_mask_len)
+                        local_sd_pred = np.sqrt(np.sum(np.square(local_pred - local_mean_pred)) / local_mask_len)
+                        if is_fix_inv_local:
+                            new_local_gt = local_gt_diff - local_mean_gt
+                            new_local_pred = (local_pred - local_mean_pred) * (local_sd_gt / local_sd_pred)
+                            new_local_pred_inv = new_local_pred.copy() * -1
+                            new_local_err = np.sqrt(np.sum(np.square(new_local_gt - new_local_pred)))
+                            new_local_err_inv = np.sqrt(np.sum(np.square(new_local_gt - new_local_pred_inv)))
+                            if new_local_err < new_local_err_inv:
+                                new_pred_diff[i, j] = new_local_pred[p, p] + local_mean_gt
+                            else:
+                                new_pred_diff[i, j] = new_local_pred_inv[p, p] + local_mean_gt
+                        else:
+                            new_pred_diff[i, j] = (predict_diff[i, j] - local_mean_pred) * (local_sd_gt / local_sd_pred) + local_mean_gt
                 predict_diff = new_pred_diff
+                mask = new_mask
                 mask[:p, :] = False
                 mask[batch_shape[0] - p:, :] = False
                 mask[:, :p] = False
@@ -613,8 +732,8 @@ def main():
                             continue
                         local_mean_gt = np.sum(local_gt_diff) / local_mask_len
                         local_mean_pred = np.sum(local_pred) / local_mask_len
-                        local_sd_gt = np.sqrt(np.sum(np.square(local_gt_diff)) / local_mask_len)
-                        local_sd_pred = np.sqrt(np.sum(np.square(local_pred)) / local_mask_len)
+                        local_sd_gt = np.sqrt(np.sum(np.square(local_gt_diff - local_mean_gt)) / local_mask_len)
+                        local_sd_pred = np.sqrt(np.sum(np.square(local_pred - local_mean_pred)) / local_mask_len)
                         predict_diff[p*i:p*(i+1), p*j:p*(j+1)] = (local_pred - local_mean_pred) * (local_sd_gt / local_sd_pred) + local_mean_gt
             
         
