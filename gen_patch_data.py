@@ -14,16 +14,18 @@ import random
 os.chdir(os.path.dirname(os.path.abspath(__file__))) #set currenct dir
 
 # src_dir = '../data/render_wave1'
-src_dir = '../data/render_wave2_1000'
-data_num = 1000
+src_dir = '../data/render_wave1-double_800'
+src_dir = '../data/render_wave1_400'
+data_num = 100
 
 # save_dir = '../data/patch_wave1'
-save_dir = '../data/patch_wave2_2000'
+save_dir = '../data/batch_wave1-double_800'
+save_dir = '../data/batch_wave1_100'
 
 # parameters
 depth_threshold = 0.2
 difference_threshold = 0.01
-patch_remove = 0.9
+patch_remove = 0.5
 
 is_transfer_learning = False
 is_finetune = False
@@ -34,7 +36,7 @@ is_input_frame = True
 
 # normalization
 is_shading_norm = True # Shading Normalization
-# is_shading_norm = False
+is_shading_norm = False
 is_difference_norm = True # Difference Normalization
 # is_difference_norm = False
 
@@ -48,9 +50,10 @@ val_rate = 0.3
 
 
 
-def gen_patch_data(data_idx_range, dir_name, batch_size=64):
-    input_dir = dir_name + '/in'
-    gt_dir = dir_name + '/gt'
+# def gen_patch_data(data_idx_range, dir_name, batch_size=64):
+def gen_patch_data(data_idx_list, dir_name, batch_size=64):
+    input_dir = dir_name + '/x'
+    gt_dir = dir_name + '/y'
     os.makedirs(input_dir, exist_ok=True)
     os.makedirs(gt_dir, exist_ok=True)
 
@@ -72,14 +75,13 @@ def gen_patch_data(data_idx_range, dir_name, batch_size=64):
 
     # read data
     # print('loading data...')
-    data_idx_range = list(data_idx_range)
+    # data_idx_range = list(data_idx_range)
+    data_idx_range = data_idx_list
     x_train = []
     y_train = []
     valid = []
     len_list = 0
     num_patch = 0
-    num_patch = 328
-    num_patch = 144
     for data_idx in tqdm(data_idx_range):
     # for data_idx in data_idx_range:
         if is_transfer_learning or is_finetune:
@@ -115,7 +117,7 @@ def gen_patch_data(data_idx_range, dir_name, batch_size=64):
         shading_gray = shading_gray[:1200, :1200]
         shading = shading_gray#.reshape(shading_gray.shape + (1,))
 
-        is_shading_available = shading > 0
+        is_shading_available = shading > 16.0
         mask_shading = is_shading_available * 1.0
         # depth_gap = depth_gt[:, :] * mask_shading
         # mean_depth = np.sum(depth_gap) / np.sum(mask_shading)
@@ -160,7 +162,10 @@ def gen_patch_data(data_idx_range, dir_name, batch_size=64):
         is_depth_close = np.logical_and(
                 np.abs(difference) < difference_threshold,
                 is_gap_available)
+
         mask = is_depth_close.astype(np.float32)
+        mask *= mask_shading
+
         length = np.sum(mask)
 
         # mean_difference = np.sum(difference * mask) / length
@@ -224,8 +229,11 @@ def main():
 
     train_num = int(data_num * (1 - val_rate))
 
-    # gen_patch_data(range(train_num), train_dir)
-    gen_patch_data(range(train_num, data_num), val_dir)
+    idx_list = list(range(data_num))
+    random.shuffle(idx_list)
+
+    gen_patch_data(idx_list[:train_num], train_dir)
+    gen_patch_data(idx_list[train_num:], val_dir)
 
 
 if __name__ == "__main__":

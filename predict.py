@@ -37,7 +37,7 @@ epoch_num = int(epoch_num)
 
 # normalization
 is_shading_norm = True
-# is_shading_norm = False
+is_shading_norm = False
 
 # parameters
 depth_threshold = 0.2
@@ -83,6 +83,9 @@ mask_edge_size = 4
 # mask_edge_size = 32
 # mask_edge_size = 64
 
+patch_rate = 50
+patch_rate = 95 # %
+
 #InputData
 # src_dir = '../data/input_200201'
 # src_dir = '../data/input_200302'
@@ -92,6 +95,7 @@ if data_type is '0':
     # src_dir = '../data/input_200318'
     src_dir = '../data/board'
     predict_dir = out_dir + '/predict_{}_board'.format(epoch_num)
+    predict_dir = out_dir + '/predict_{}_board-clip'.format(epoch_num)
     # predict_dir = out_dir + '/predict_{}_board-median'.format(epoch_num)
     # predict_dir = out_dir + '/predict_{}_trans'.format(epoch_num)
     # predict_dir = out_dir + '/predict_{}_board_test_cp'.format(epoch_num)
@@ -103,7 +107,8 @@ elif data_type is '1':
     predict_dir = out_dir + '/predict_{}_1wave'.format(epoch_num)
     data_num = 100
     data_num = 200
-    test_num = 40
+    test_num = 20
+    # test_num = 40
     data_idx_range = list(range(data_num, data_num + test_num))
     difference_threshold = 0.1
 elif data_type is '2':
@@ -118,9 +123,10 @@ elif data_type is '3':
     predict_dir = out_dir + '/predict_{}_real'.format(epoch_num)
     # predict_dir = out_dir + '/predict_{}_real-median'.format(epoch_num)
     data_num = 9
-    data_num = 20
+    data_num = 19
     data_idx_range = list(range(data_num))
     mask_edge_size = 2
+    patch_rate = 50
 
 
 # save predict depth PLY file
@@ -133,13 +139,12 @@ is_save_diff = True
 is_save_diff = False
 
 is_save_depth_img = True
-is_save_depth_img = False
+# is_save_depth_img = False
 
 # predict normalization
 is_predict_norm = True # Difference Normalization
 # is_predict_norm = False
 is_predict_norm_local = True # Difference Normalization Local
-patch_rate = 95 # %
 # is_predict_norm_local = False
 norm_patch_size = 12
 # norm_patch_size = 24
@@ -316,8 +321,8 @@ cam_params = {
 
 def main():
     if data_type is '0':
-        # src_rec_dir = src_dir + '/rec'
-        src_rec_dir = src_dir + '/rec_ajusted'
+        src_rec_dir = src_dir + '/rec'
+        # src_rec_dir = src_dir + '/rec_ajusted'
         # src_rec_dir = src_dir + '/lowres' ############################ median filter depth
         src_frame_dir = src_dir + '/frame'
         src_gt_dir = src_dir + '/gt'
@@ -406,7 +411,7 @@ def main():
         plt.savefig(lossgraph_dir + '/loss_{}-{}.pdf'.format(init_epo + 1, epoch_num))
 
     # error compare txt
-    err_strings = 'index,type,MAE depth,MAE predict,RMSE depth,RMSE predict\n'
+    err_strings = 'index,type,MAE depth,MAE predict,RMSE depth,RMSE predict,SD AE depth,SD AE predict,SD RSE depth,SD RSE predict\n'
 
     os.makedirs(predict_dir, exist_ok=True)
     for test_idx in tqdm(data_idx_range):
@@ -720,6 +725,12 @@ def main():
                 mask[batch_shape[0] - p:, :] = False
                 mask[:, :p] = False
                 mask[:, batch_shape[1] - p:] = False
+                # print(mask[40:60, 1140:1160])
+                mask *= 1.0
+                # print(mask_length)
+                # print(mask[40:60, 1140:1160])
+                mask_length = np.sum(mask)
+                # print(mask_length)
             else:
                 for i in range(batch_shape[0] // p):
                     for j in range(batch_shape[1] // p):
@@ -747,6 +758,11 @@ def main():
             sd_predict = np.sqrt(np.sum(np.square(predict_diff * mask)) / mask_length)
             predict_diff *= sd_gt / sd_predict
             predict_diff += mean_gt
+
+        ###############
+        depth_gt_masked = depth_gt * mask
+        gt_diff = (depth_gt - depth_gap) * mask
+        predict_diff_masked = predict_diff * mask
 
         # reverse predict
         if is_pred_reverse:
@@ -842,6 +858,12 @@ def main():
         predict_RMSE = np.sqrt(predict_MSE)
         depth_RMSE = np.sqrt(depth_MSE)
 
+        # SD
+        sd_ae_depth = np.sqrt(np.sum(np.square(depth_err_abs - depth_MAE) * mask) / mask_length)
+        sd_ae_pred = np.sqrt(np.sum(np.square(predict_err_abs - predict_MAE) * mask) / mask_length)
+        sd_rse_depth = np.sqrt(np.sum(np.square(np.sqrt(depth_err_sqr) - depth_RMSE) * mask) / mask_length)
+        sd_rse_pred = np.sqrt(np.sum(np.square(np.sqrt(predict_err_sqr) - predict_RMSE) * mask) / mask_length)
+
         if is_pred_pix_reverse: # Inverse on Pix
             if is_reverse_threshold: # Inverse by Threshold
                 predict_err_abs = np.where(np.logical_and(predict_err_abs > r_thre, predict_err_abs > predict_err_abs_R), 
@@ -901,7 +923,7 @@ def main():
             err_strings += ',test,'
         else:
             err_strings += ',train,'
-        for string in [depth_MAE, predict_MAE,depth_RMSE, predict_RMSE]:
+        for string in [depth_MAE, predict_MAE,depth_RMSE, predict_RMSE, sd_ae_depth, sd_ae_pred, sd_rse_depth, sd_rse_pred]:
             err_strings += str(string) + ','
         err_strings.rstrip(',')
         err_strings = err_strings[:-1] + '\n'

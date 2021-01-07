@@ -10,10 +10,11 @@ data_dir = DIR + 'data/render/'
 # data_dir = DIR + 'data/render_wave1-norm_direct/'
 # data_dir = DIR + 'data/real/'
 
-rec_dir = data_dir + 'rec_ori/'
+in_rec_dir = data_dir + 'rec_ori/'
+out_rec_dir = data_dir + 'rec/'
 gt_dir = data_dir + 'gt/'
 
-data_num = 1000
+data_num = 220
 
 # calib 200317
 cam_params = {
@@ -36,12 +37,13 @@ depth_threshold = 0.2
 difference_threshold = 0.01
 
 data_idx_range = range(data_num)
+data_idx_range = range(400)
 
 for idx in tqdm(data_idx_range):
     img_gt = cv2.imread(gt_dir + '{:05d}.bmp'.format(idx), -1)
     img_gt = img_gt[:1200, :1200, :]
-    # img_rec = cv2.imread(rec_dir + '{:05d}.png'.format(idx), -1)
-    img_rec = cv2.imread(rec_dir + '{:05d}.bmp'.format(idx), -1)
+    # img_rec = cv2.imread(in_rec_dir + '{:05d}.png'.format(idx), -1)
+    img_rec = cv2.imread(in_rec_dir + '{:05d}.bmp'.format(idx), -1)
     img_rec = img_rec[:1200, :1200, :]
     depth_gt = depth_tools.unpack_bmp_bgra_to_float(img_gt)
     # depth_rec = depth_tools.unpack_png_to_float(img_rec)
@@ -70,7 +72,7 @@ for idx in tqdm(data_idx_range):
 
 
     img_rec_ajust = depth_tools.pack_float_to_bmp_bgra(depth_rec_ajust)
-    cv2.imwrite(data_dir + 'rec/{:05d}.bmp'.format(idx), img_rec_ajust)
+    cv2.imwrite(out_rec_dir + '/{:05d}.bmp'.format(idx), img_rec_ajust)
 
     # xyz_rec = depth_tools.convert_depth_to_coords(depth_rec_ajust, cam_params)
     # depth_tools.dump_ply(data_dir + 'ply_rec_ajust_old/{:05d}.ply'.format(idx), xyz_rec.reshape(-1, 3).tolist())

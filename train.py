@@ -81,12 +81,17 @@ if is_transfer_learning or is_finetune or is_transfer_encoder:
     # is_from_min = True
 else:
     use_generator = False
+    use_generator = True
     src_dir = '../data/render'
     src_dir = '../data/render_wave1_300'
     # src_dir = '../data/render_wave1-board'
-    src_dir = '../data/render_wave2_1100'
-    src_dir = '../data/render_wave2-board'
-
+    src_dir = '../data/render_wave1-double'
+    # src_dir = '../data/render_wave1-direct'
+    # src_dir = '../data/render_wave1-double-direct'
+    # src_dir = '../data/render_wave2_1100'
+    # src_dir = '../data/render_wave2-board'
+    # src_dir = '../data/render_wave2-direct'
+    src_2_dir = '../data/render_from-real'
 
 #RemoteOutput
 out_dir = 'output'
@@ -126,6 +131,7 @@ if is_transfer_learning or is_finetune or is_transfer_encoder:
 else:
     data_idx_range = range(160)
     data_idx_range = range(200)
+    # data_idx_range = range(250)
     # # data_idx_range = range(320)
     # data_idx_range = range(1000)
     # data_idx_range = range(2000)
@@ -150,11 +156,12 @@ monitor_loss = 'val_loss'
 # input
 is_input_depth = True
 is_input_frame = True
-is_input_coord = True
+is_input_coord = False
+# is_input_coord = True
 
 # normalization
 is_shading_norm = True # Shading Normalization
-# is_shading_norm = False
+is_shading_norm = False
 is_difference_norm = True # Difference Normalization
 # is_difference_norm = False
 
@@ -215,6 +222,8 @@ rotate_max = 45
 zoom_range=[0.9, 1.1]
 zoom_range=[0.8, 1.2]
 
+lumi_scale_range = [0.5, 1.5]
+# lumi_scale_range = [0.2, 5]
 
 if is_transfer_learning or is_finetune or is_transfer_encoder:
     difference_threshold = 0.005
@@ -257,6 +266,12 @@ def augment_zoom(img):
         new_img[int((h - resize_h)//2): int((h + resize_h)//2),
                 int((w - resize_w)//2): int((w + resize_w)//2), :] = x
     return new_img
+
+def augment_luminance(img):
+    aug_scale = random.uniform(lumi_scale_range[0], lumi_scale_range[1])
+    img[:, :, 0] *= aug_scale
+    img[:, :, 2] *= aug_scale
+    return img
 
 if is_augment:
     if augment_type is '1':
@@ -322,15 +337,19 @@ if is_augment:
             fill_mode='constant',
             cval=0
         )
+    elif augment_type is '8': # shading, pattern luminance aug
+        datagen_args = dict(
+            preprocessing_function=augment_luminance
+        )
 
     x_datagen = ImageDataGenerator(**datagen_args)
-    y_datagen = ImageDataGenerator(**datagen_args)
+    # y_datagen = ImageDataGenerator(**datagen_args)
     # x_datagen = ImageDataGenerator() # train loss no-aug
-    # y_datagen = ImageDataGenerator() # train loss no-aug
+    y_datagen = ImageDataGenerator() # train loss no-aug
     x_val_datagen = ImageDataGenerator(**datagen_args) # val aug
-    y_val_datagen = ImageDataGenerator(**datagen_args) # val aug
+    # y_val_datagen = ImageDataGenerator(**datagen_args) # val aug
     # x_val_datagen = ImageDataGenerator()
-    # y_val_datagen = ImageDataGenerator()
+    y_val_datagen = ImageDataGenerator()
     seed_train = 1
     seed_val = 2
 
@@ -384,10 +403,12 @@ def prepare_data(data_idx_range, return_valid=False):
         # w = size[1]
         return img[t:t + h, l:l + w]
 
+    
+
     if is_transfer_learning or is_finetune or is_transfer_encoder:
         # src_rec_dir = src_dir + '/rec'
         src_rec_dir = src_dir + '/rec_ajusted'
-        src_rec_dir = src_dir + '/lowres' # Median Filter Depth
+        # src_rec_dir = src_dir + '/lowres' # Median Filter Depth
         src_frame_dir = src_dir + '/frame'
         src_gt_dir = src_dir + '/gt'
         src_shading_dir = src_dir + '/shading'
@@ -403,10 +424,17 @@ def prepare_data(data_idx_range, return_valid=False):
     x_train = []
     y_train = []
     valid = []
-    # for data_idx in tqdm(data_idx_range):
-    for data_idx in data_idx_range:
+    for data_idx in tqdm(data_idx_range):
+    # for data_idx in data_idx_range:
         if return_valid:
             print('{:04d} : {:04d} - {:04d}'.format(data_idx, data_idx_range[0], data_idx_range[-1]), end='\r')
+
+        if data_idx >= 150:
+            data_idx += 50
+            src_frame_dir = src_2_dir + '/proj'
+            src_gt_dir = src_2_dir + '/gt'
+            src_shading_dir = src_2_dir + '/shade'
+            src_rec_dir = src_2_dir + '/rec'
 
         if is_transfer_learning or is_finetune or is_transfer_encoder:
             src_bgra = src_frame_dir + '/frame{:03d}.png'.format(data_idx)
@@ -757,6 +785,32 @@ class BatchGenerator(Sequence):
     def on_epoch_end(self):
         pass
 
+is_aug_lumi = True
+# is_aug_lumi = False
+
+class MiniBatchGenerator(Sequence):
+    def __init__(self, dir_name, data_num, use_num):
+        self.data_size = data_num
+        self.batches_per_epoch = use_num
+        self.x_file = dir_name + '/x/{:05d}.npy'
+        self.y_file = dir_name + '/y/{:05d}.npy'
+
+    def __getitem__(self, idx):
+        random_idx = random.randrange(0, self.data_size)
+        x_batch = np.load(self.x_file.format(random_idx))
+        y_batch = np.load(self.y_file.format(random_idx))
+        if is_aug_lumi:
+            aug_scale = random.uniform(lumi_scale_range[0], lumi_scale_range[1])
+            x_batch[:, :, :, 0] *= aug_scale
+            x_batch[:, :, :, 2] *= aug_scale
+        return x_batch, y_batch
+
+    def __len__(self):
+        return self.batches_per_epoch
+
+    def on_epoch_end(self):
+        pass
+
 def main():
     if use_generator:
         # patch_dir = '../data/patch_wave1'
@@ -767,9 +821,30 @@ def main():
         # train_generator = BatchGenerator(patch_dir + '/train', 328)
         # val_generator = BatchGenerator(patch_dir + '/val', 144)
 
-        patch_dir = '../data/patch_wave2_2000'
-        train_generator = BatchGenerator(patch_dir + '/train', 656)
-        val_generator = BatchGenerator(patch_dir + '/val', 289)
+        # patch_dir = '../data/patch_wave2_2000'
+        # train_generator = BatchGenerator(patch_dir + '/train', 656)
+        # val_generator = BatchGenerator(patch_dir + '/val', 289)
+
+        # wave1
+        #100
+        patch_dir = '../data/batch_wave1_100'
+        train_generator = MiniBatchGenerator(patch_dir + '/train', 46, 70)
+        val_generator = MiniBatchGenerator(patch_dir + '/val', 20, 30)
+        #400
+        # patch_dir = '../data/batch_wave1_400'
+        # train_generator = MiniBatchGenerator(patch_dir + '/train', 197, 70)
+        # val_generator = MiniBatchGenerator(patch_dir + '/val', 80, 30)
+
+        # wave1-double
+        # 200
+        # patch_dir = '../data/batch_wave1-double_200'
+        # train_generator = MiniBatchGenerator(patch_dir + '/train', 94, 70)
+        # val_generator = MiniBatchGenerator(patch_dir + '/val', 40, 30)
+        # 800
+        # patch_dir = '../data/batch_wave1-double_800'
+        # train_generator = MiniBatchGenerator(patch_dir + '/train', 395, 70)
+        # val_generator = MiniBatchGenerator(patch_dir + '/val', 168, 30)
+        
     else:
         x_data, y_data = prepare_data(data_idx_range)
         print('x train data:', x_data.shape)
