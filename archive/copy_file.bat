@@ -1,0 +1,1 @@
+scp -i ~/.ssh/limu7_key train_difference_learn.py limu7@10.200.12.115:~/tokieda/cnn-depth_remote/remote-dir/

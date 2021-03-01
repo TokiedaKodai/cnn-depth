@@ -1,1 +1,0 @@
-scp -r -i ~/.ssh/limu7_key input_data_1023 limu7@10.200.12.115:~/tokieda/cnn-depth_remote/remote-dir

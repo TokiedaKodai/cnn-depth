@@ -28,8 +28,9 @@ argv = sys.argv
 # _, out_local, is_model_exist, epoch_num, augment_type, dropout, net_type, transfer_learn = argv
 # _, out_local, learn_type, start, epoch_num, augment_type, dropout, learning_rate, norm = argv
 # _, out_local, learn_type, start, epoch_num, augment_type, dropout, scale = argv
-_, out_local, learn_type, start, epoch_num, augment_type, dropout = argv
+# _, out_local, learn_type, start, epoch_num, augment_type, dropout = argv
 # out_local, learn_type, start, epoch_num, augment_type, dropout = 'wave1', '0', '0', '300', '0', '10'
+_, out_local, learn_type, start, epoch_num, augment_type, dropout, max_rotate = argv
 
 # learning_rate = '1'
 # if learning_rate is '0':
@@ -74,23 +75,35 @@ os.chdir(os.path.dirname(os.path.abspath(__file__))) #set currenct dir
 is_from_min = False
 is_select_val = True
 
+is_use_from_real = False
+
 #InputData
 if is_transfer_learning or is_finetune or is_transfer_encoder:
     src_dir = '../data/input_200318'
+    src_dir = '../data/board-real'
+    # src_dir = '../data/real'
     use_generator = False
     # is_from_min = True
 else:
     use_generator = False
-    use_generator = True
+    # use_generator = True
     src_dir = '../data/render'
     src_dir = '../data/render_wave1_300'
     # src_dir = '../data/render_wave1-board'
     src_dir = '../data/render_wave1-double'
+    src_dir = '../data/render_wave1-double_800'
     # src_dir = '../data/render_wave1-direct'
     # src_dir = '../data/render_wave1-double-direct'
-    # src_dir = '../data/render_wave2_1100'
+    src_dir = '../data/render_wave2_1100'
     # src_dir = '../data/render_wave2-board'
     # src_dir = '../data/render_wave2-direct'
+    src_dir = '../data/render_waves_600'
+
+    src_dir = '../data/render_wave1-pose_200'
+    src_dir = '../data/render_wave1d-pose_400'
+    src_dir = '../data/render_wave2-pose_600'
+
+    is_use_from_real = False
     src_2_dir = '../data/render_from-real'
 
 #RemoteOutput
@@ -128,14 +141,15 @@ if is_transfer_learning or is_finetune or is_transfer_encoder:
     # data_idx_range = [0, 1, 3, 6, 16, 17, 19, 22]
     # data_idx_range = range(40)
     data_idx_range = range(16)
+    data_idx_range = range(21)
+    data_idx_range = range(25)
+    data_idx_range = range(27)
 else:
     data_idx_range = range(160)
     data_idx_range = range(200)
-    # data_idx_range = range(250)
-    # # data_idx_range = range(320)
-    # data_idx_range = range(1000)
-    # data_idx_range = range(2000)
-
+    data_idx_range = range(400)
+    data_idx_range = range(600)
+    # data_idx_range = range(800)
 
 # parameters
 depth_threshold = 0.2
@@ -143,6 +157,7 @@ difference_threshold = 0.01
 # difference_threshold = 0.005
 # difference_threshold = 0.003
 patch_remove = 0.5
+patch_remove = 0.9
 # dropout_rate = 0.12
 dropout_rate = int(dropout) / 100
 
@@ -156,6 +171,7 @@ monitor_loss = 'val_loss'
 # input
 is_input_depth = True
 is_input_frame = True
+# is_input_frame = False
 is_input_coord = False
 # is_input_coord = True
 
@@ -215,8 +231,8 @@ augment_val_rate = 1
 shift_max = 0.1
 shift_max = 0.2
 # shift_max = 0.5
-rotate_max = 10
-rotate_max = 45
+rotate_max = int(max_rotate)
+# rotate_max = 45
 # rotate_max = 90
 # zoom_range=[0.5, 1.5]
 zoom_range=[0.9, 1.1]
@@ -270,7 +286,8 @@ def augment_zoom(img):
 def augment_luminance(img):
     aug_scale = random.uniform(lumi_scale_range[0], lumi_scale_range[1])
     img[:, :, 0] *= aug_scale
-    img[:, :, 2] *= aug_scale
+    if is_input_frame:
+        img[:, :, 2] *= aug_scale
     return img
 
 if is_augment:
@@ -339,6 +356,7 @@ if is_augment:
         )
     elif augment_type is '8': # shading, pattern luminance aug
         datagen_args = dict(
+            rotation_range=rotate_max,
             preprocessing_function=augment_luminance
         )
 
@@ -406,8 +424,8 @@ def prepare_data(data_idx_range, return_valid=False):
     
 
     if is_transfer_learning or is_finetune or is_transfer_encoder:
-        # src_rec_dir = src_dir + '/rec'
-        src_rec_dir = src_dir + '/rec_ajusted'
+        src_rec_dir = src_dir + '/rec'
+        # src_rec_dir = src_dir + '/rec_ajusted'
         # src_rec_dir = src_dir + '/lowres' # Median Filter Depth
         src_frame_dir = src_dir + '/frame'
         src_gt_dir = src_dir + '/gt'
@@ -429,12 +447,13 @@ def prepare_data(data_idx_range, return_valid=False):
         if return_valid:
             print('{:04d} : {:04d} - {:04d}'.format(data_idx, data_idx_range[0], data_idx_range[-1]), end='\r')
 
-        if data_idx >= 150:
-            data_idx += 50
-            src_frame_dir = src_2_dir + '/proj'
-            src_gt_dir = src_2_dir + '/gt'
-            src_shading_dir = src_2_dir + '/shade'
-            src_rec_dir = src_2_dir + '/rec'
+        if is_use_from_real:
+            if data_idx >= 150:
+                data_idx += 50
+                src_frame_dir = src_2_dir + '/proj'
+                src_gt_dir = src_2_dir + '/gt'
+                src_shading_dir = src_2_dir + '/shade'
+                src_rec_dir = src_2_dir + '/rec'
 
         if is_transfer_learning or is_finetune or is_transfer_encoder:
             src_bgra = src_frame_dir + '/frame{:03d}.png'.format(data_idx)
@@ -443,6 +462,8 @@ def prepare_data(data_idx_range, return_valid=False):
             src_depth_gt = src_gt_dir + '/gt{:03d}.bmp'.format(data_idx)
             # src_shading = src_shading_dir + '/shading{:03d}.png'.format(data_idx)
             src_shading = src_shading_dir + '/shading{:03d}.bmp'.format(data_idx)
+            if (data_idx >= 16 and data_idx <= 20) or data_idx >= 25:
+                src_shading = src_shading_dir + '/shading{:03d}.png'.format(data_idx)
         else:
             src_bgra = src_frame_dir + '/{:05d}.png'.format(data_idx)
             src_depth_gt = src_gt_dir + '/{:05d}.bmp'.format(data_idx)
@@ -812,6 +833,9 @@ class MiniBatchGenerator(Sequence):
         pass
 
 def main():
+    if is_model_exist is '0':
+        os.makedirs(out_dir)
+
     if use_generator:
         # patch_dir = '../data/patch_wave1'
         # train_generator = BatchGenerator(patch_dir + '/train', 66)
@@ -958,7 +982,7 @@ def main():
     if is_model_exist is '0':
         # os.makedirs(out_dir, exist_ok=True)
         # os.makedirs(model_dir, exist_ok=True)
-        os.makedirs(out_dir)
+        # os.makedirs(out_dir)
         os.makedirs(model_dir)
 
     # train

@@ -37,7 +37,7 @@ depth_threshold = 0.2
 difference_threshold = 0.01
 
 data_idx_range = range(data_num)
-data_idx_range = range(400)
+data_idx_range = range(19)
 
 for idx in tqdm(data_idx_range):
     img_gt = cv2.imread(gt_dir + '{:05d}.bmp'.format(idx), -1)

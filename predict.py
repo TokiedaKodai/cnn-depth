@@ -18,6 +18,8 @@ import depth_tools
 import common_tools
 import compare_error
 
+import network2
+
 '''
 ARGV
 1: output dir
@@ -31,7 +33,7 @@ _, out_dir, epoch_num, data_type = argv # output dir, epoch
 net_type = '0'
 
 out_dir = '../output/output_' + out_dir
-# out_dir = '../output/archive/200318/output_' + out_dir
+# out_dir = '../output/' + out_dir
 
 epoch_num = int(epoch_num)
 
@@ -60,6 +62,7 @@ difference_scaling = 1
 # input
 is_input_depth = True
 is_input_frame = True
+# is_input_frame = False
 is_input_coord = False
 # is_input_coord = True
 
@@ -73,6 +76,7 @@ save_period = 1
 select_range = epoch_num / 2
 select_range = 200
 select_range = 300
+select_range = 50
 
 is_edge_crop = True
 mask_edge_size = 1
@@ -96,6 +100,7 @@ if data_type is '0':
     src_dir = '../data/board'
     predict_dir = out_dir + '/predict_{}_board'.format(epoch_num)
     predict_dir = out_dir + '/predict_{}_board-clip'.format(epoch_num)
+    # predict_dir = out_dir + '/predict_{}_board-clip-2'.format(epoch_num)
     # predict_dir = out_dir + '/predict_{}_board-median'.format(epoch_num)
     # predict_dir = out_dir + '/predict_{}_trans'.format(epoch_num)
     # predict_dir = out_dir + '/predict_{}_board_test_cp'.format(epoch_num)
@@ -127,7 +132,17 @@ elif data_type is '3':
     data_idx_range = list(range(data_num))
     mask_edge_size = 2
     patch_rate = 50
-
+elif data_type is '4':
+    # src_dir = '../data/render_from-real'
+    src_dir = '../data/render_real'
+    # predict_dir = out_dir + '/predict_{}_real-patch'.format(epoch_num)
+    predict_dir = out_dir + '/predict_{}_render-real'.format(epoch_num)
+    predict_dir = out_dir + '/predict_{}_render-real_test'.format(epoch_num)
+    data_num = 50
+    test_num = 10
+    # data_idx_range = list(range(220, 230))
+    data_idx_range = list(range(19))
+    difference_threshold = 0.1
 
 # save predict depth PLY file
 is_save_ply = True
@@ -254,6 +269,9 @@ if data_type is '0':
     data_idx_range = list(range(40, 56))
     test_range = list(range(40, 56))
 
+    # data_idx_range = list(range(56, 68))
+    # test_range = list(range(56, 68))
+
     # data_idx_range = [0, 1, 3, 6, 16, 17, 19, 22]
     # data_idx_range.extend(list(range(40, 56)))
 
@@ -280,7 +298,10 @@ elif data_type is '3':
 
     test_range = list(range(9))
     test_range = list(range(19))
-
+elif data_type is '4':
+    train_range = list()
+    # test_range = list(range(220, 230))
+    test_range = list(range(19))
 
 
 # save ply range
@@ -343,6 +364,11 @@ def main():
         src_shading_dir = src_dir + '/shade'
         src_rec_dir = src_dir + '/rec'
         # src_rec_dir = src_dir + '/lowres'
+    elif data_type is '4':
+        src_frame_dir = src_dir + '/proj'
+        src_gt_dir = src_dir + '/gt'
+        src_shading_dir = src_dir + '/shade'
+        src_rec_dir = src_dir + '/rec'
 
 
     if is_input_depth:
@@ -361,6 +387,7 @@ def main():
     # model configuration
     if net_type is '0':
         model = network.build_unet_model(batch_shape, ch_num)
+        # model = network2.BuildUnet(num_ch=ch_num,lr=0.001,rate_dropout=0.1, shape_patch=batch_shape)
     elif net_type is '1':
         model = network.build_resnet_model(batch_shape, ch_num)
     elif net_type is '2':
@@ -382,6 +409,7 @@ def main():
         idx_min_loss = df_select.idxmin()
         model.load_weights(out_dir + '/model/model-%03d.hdf5'%idx_min_loss)
         # model.load_weights(out_dir + '/model/model-best.hdf5')
+        # model.load_weights(out_dir + '/model-best.hdf5')
     else:
         # model.load_weights(out_dir + '/model-final.hdf5')
         model.load_weights(out_dir + '/model/model-%03d.hdf5'%epoch_num)
@@ -436,6 +464,11 @@ def main():
             src_bgra = src_frame_dir + '/{:05d}.png'.format(test_idx)
             src_depth_gt = src_gt_dir + '/{:05d}.bmp'.format(test_idx)
             # src_shading = src_shading_dir + '/{:05d}.bmp'.format(test_idx)
+            src_shading = src_shading_dir + '/{:05d}.png'.format(test_idx)
+            src_depth_gap = src_rec_dir + '/{:05d}.bmp'.format(test_idx)
+        elif data_type is '4':
+            src_bgra = src_frame_dir + '/{:05d}.png'.format(test_idx)
+            src_depth_gt = src_gt_dir + '/{:05d}.bmp'.format(test_idx)
             src_shading = src_shading_dir + '/{:05d}.png'.format(test_idx)
             src_depth_gap = src_rec_dir + '/{:05d}.bmp'.format(test_idx)
 
@@ -812,8 +845,8 @@ def main():
 
         predict_depth = predict_diff
         # difference learn
-        predict_depth += depth_gap
-        predict_masked = predict_depth * mask
+        # predict_depth += depth_gap
+        # predict_masked = predict_depth * mask
 
         # ajust bias, calc error
         if is_pred_ajust:
@@ -827,17 +860,25 @@ def main():
             predict_masked += mean_depth_gt - mean_depth_pred
 
         # error
-        depth_err_abs = np.abs(depth_gt - depth_gap)
-        depth_err_sqr = np.square(depth_gt - depth_gap)
-        depth_err_diff = depth_gt - depth_gap
+        # depth_err_abs = np.abs(depth_gt - depth_gap)
+        # depth_err_sqr = np.square(depth_gt - depth_gap)
+        # depth_err_diff = depth_gt - depth_gap
+        depth_err_abs = np.abs(gt_diff)
+        depth_err_sqr = np.square(gt_diff)
+        depth_err_diff = gt_diff
         if is_pred_ajust:
             # predict_err_abs = np.abs(gt_diff - out_diff_ajusted)
             # predict_err_sqr = np.square(gt_diff - out_diff_ajusted)
             predict_err_abs = np.abs(depth_gt - predict_depth)
             predict_err_sqr = np.square(depth_gt - predict_depth)
         else:
-            predict_err_abs = np.abs(depth_gt - predict_depth)
-            predict_err_sqr = np.square(depth_gt - predict_depth)
+            # predict_err_abs = np.abs(depth_gt - predict_depth)
+            # predict_err_sqr = np.square(depth_gt - predict_depth)
+            predict_err_abs = np.abs(gt_diff - predict_depth)
+            predict_err_sqr = np.square(gt_diff - predict_depth)
+
+        predict_depth += depth_gap
+        predict_masked = predict_depth * mask
 
         # error image ##################################################
         depth_err = depth_err_abs
@@ -989,8 +1030,12 @@ def main():
                 ax.axis('off')
 
             # close up
-            mean = np.sum(depth_gt_masked) / mask_length
-            vmin_s, vmax_s = mean - vm_range, mean + vm_range
+            # mean = np.sum(depth_gt_masked) / mask_length
+            # vmin_s, vmax_s = mean - vm_range, mean + vm_range
+
+            # whole
+            gt_in_mask = depth_gt[np.nonzero(depth_gt * mask)]
+            vmin_s, vmax_s = np.min(gt_in_mask), np.max(gt_in_mask)
 
             ax_enh0.imshow(depth_gt_masked, cmap='jet', vmin=vmin_s, vmax=vmax_s)
             ax_enh1.imshow(depth_gap * mask, cmap='jet', vmin=vmin_s, vmax=vmax_s)
