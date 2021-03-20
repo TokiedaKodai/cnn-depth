@@ -1,7 +1,7 @@
 import cv2
 
-root_dir = 'C:/Users/b19.tokieda/Desktop/cnn-depth-root/'
-data_dir = 'C:/Users/b19.tokieda/Desktop/data_200317/'
+root_dir = '/cnn-depth-root/'
+data_dir = '/data_200317/'
 output_dir = root_dir + 'data/input_200317/'
 
 def collect(datatype, distance, idx, cnt):

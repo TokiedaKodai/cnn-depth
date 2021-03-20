@@ -9,8 +9,8 @@ from tqdm import tqdm
 
 import depth_tools
 
-root_dir = 'C:/Users/Kodai Tokieda/Desktop/cnn-depth_remote/'
-local_dir = 'C:/Users/b19.tokieda/Desktop/cnn-depth_remote/local-dir/'
+root_dir = '/cnn-depth_remote/'
+local_dir = '/cnn-depth_remote/local-dir/'
 
 # cam_params = {
 #     'focal_length': 0.0360735,

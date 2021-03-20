@@ -5,7 +5,7 @@ from tqdm import tqdm
 import os
 
 DIR = '../'
-DIR_REC = 'C:/Users/b19.tokieda/Desktop/data_200317/reconst/'
+DIR_REC = '/data_200317/reconst/'
 src_dir = DIR + 'data/input_200317'
 src_rec_dir = src_dir + '/rec'
 src_gt_dir = src_dir + '/gt'

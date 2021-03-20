@@ -2,10 +2,10 @@ import os
 import shutil
 from subprocess import call
 
-local_dir = 'C:/Users/b19.tokieda/Desktop/cnn-depth_remote/local-dir/'
-remote_server = 'limu7@10.200.12.115'
-remote_dir = '~/tokieda/cnn-depth_remote/remote-dir/'
-remote_key = '~/.ssh/limu7_key'
+local_dir = '/cnn-depth_remote/local-dir/'
+remote_server = ''
+remote_dir = '/remote-dir/'
+remote_key = ''
 
 train_file_name = 'train_difference_learn.py'
 common_file_name = 'shade_cnn_common.py'
